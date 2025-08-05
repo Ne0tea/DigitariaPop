@@ -1,0 +1,49 @@
+#!/bin/bash
+###define PBS arguments
+
+#PBS -N mapping
+#PBS -l nodes=1:ppn=20,walltime=30:00:00:00
+#PBS -q low
+#PBS -j oe
+#PBS -o log_mapping
+#set +u -e
+###job starting reminder
+
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+###job dir
+cd $PBS_O_WORKDIR
+source activate /public/home/huangyj/anaconda3/envs/population
+###job command
+#fq1=
+#fq2=
+genome="/public4/home/huangyj/Digitaria/New_assemble/04_assessment/YZGJ2_Chr.fasta"
+threads=20
+
+tmp=${fq1##*/}
+if [ ! -s ${genome%.*}.1.bt2 ] ; then
+bowtie2-build $genome ${genome%.*}
+fi
+id=${tmp/_1.clean.fq.gz/}_YZGJ2
+echo "Current mapping ${id}"
+mkdir -p ./Bam
+#/usr/bin/perl /public/home/huangyj/HLW/polymorphism/_2_new_bowtsam_pip.pl $genome $fq1 $fq2 ${id}
+bowtie2 -p 20 -x ${genome%.*} -1 ${fq1} -2 ${fq2} --rg-id ${id} --rg "PL:ILLUMINA" --rg "SM:${id}" -S ./Bam/${id}.sam
+
+sambamba-1.0.1 view -t $threads -S -f bam -o ./Bam/${id}.bam ./Bam/${id}.sam
+sambamba-1.0.1 sort -t $threads ./Bam/${id}.bam
+if [ $? = 0 ]; then
+   rm ./Bam/${id}.sam
+   rm ./Bam/${id}.bam
+fi
+sambamba-1.0.1 flagstat ./Bam/${id}.sorted.bam > ./Bam/${id}.flagstat
+sambamba-1.0.1 depth window --window-size 100000 --overlap 50000 -o ./Bam/${id}.sorted.bam.10k5k.depth ./Bam/${id}.sorted.bam
+
+#sambamba-1.0.1 index ./Bam/${id}.sorted.bam
+
+echo "${id} done"
+
+conda deactivate
+###job finished reminder
+echo "Finish at"
+date -d +20minute +'%Y-%m-%d %H:%M:%S' 

@@ -1,0 +1,100 @@
+#!/bin/bash
+###define PBS arguments
+
+#PBS -N BQSR
+#PBS -l nodes=1:ppn=4,walltime=30:00:00:00,mem=40g
+#PBS -q low
+#PBS -j oe
+#PBS -o log_BQSR
+
+###job starting reminder
+echo $USER
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+set -e 
+set -u
+
+###job dir
+cd $PBS_O_WORKDIR
+###variable
+software="/public/home/wudy/software/gatk3-7/GenomeAnalysisTK.jar"
+gatk_java='/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.262.b10-1.el7.x86_64/jre/bin/java'
+build_dict_script="/public/home/huangyj/anaconda3/envs/population/share/picard-2.18.23-0/picard.jar"
+gatk4='/public/home/huangyj/software/gatk-4.4.0.0/gatk'
+threads=10
+ref_genome='/public4/home/huangyj/Digitaria/assembly/04gap_filler/Dsan_chr.V2.fa'
+###job command
+source activate /public/home/huangyj/anaconda3/envs/population 
+#---------------------------------input set----------------------------------
+#give $bam
+for bam in `cat $file`
+do
+tmp=${bam##*/}
+sample=${tmp%%_*}
+mkdir -p /public4/home/huangyj/Digitaria/population/Bam_recal/${sample}_tmpfile
+gatk_tmpfile=/public4/home/huangyj/Digitaria/population/Bam_recal/${sample}_tmpfile
+
+if [ ! -s ${bam}.bai ] ; then
+sambamba-1.0.1 index -t $threads ${bam}
+fi
+
+###GATK默认线程即4
+##realn
+if [ ! -s ${bam%.*}.realn.bam ] || [ ! -s ${bam%.*}.recal.bam ] ; then
+$gatk_java -Xmx80g -Djava.io.tmpdir=$gatk_tmpfile -jar $software -R $ref_genome -T RealignerTargetCreator -o ${bam%%_*}.realn.intervals -I ${bam%.*}.rmdup.bam$gatk_java -Xmx80g -Djava.io.tmpdir=$gatk_tmpfile -jar $software -R $ref_genome -T IndelRealigner -targetIntervals ${bam%%_*}.realn.intervals -I ${bam%.*}.rmdup.bam -o ${bam%.*}.realn.bam
+fi
+
+##first GATK calling
+$gatk_java -Xmx80g -Djava.io.tmpdir=$gatk_tmpfile -jar $software -R $ref_genome -T UnifiedGenotyper -I ${bam%.*}.realn.bam -o ${bam%.*}.raw.vcf -nct 4 -nt $threads --genotype_likelihoods_model BOTH --sample_ploidy 6 -rf BadCigar -stand_call_conf 30
+
+##recal
+if [ ! -s ${bam%.*}.ordered.vcf ] ; then
+$gatk_java -Xmx80g -jar $build_dict_script SortVcf I=${bam%.*}.raw.vcf O=${bam%.*}.ordered.vcf SEQUENCE_DICTIONARY=${ref_genome%.*}.dict
+rm ${bam%.*}.raw.vcf
+fi
+if [ ! -s ${bam%.*}.recal_data.grp ] ; then
+$gatk_java -Xmx80g -Djava.io.tmpdir=$gatk_tmpfile -jar $software -T BaseRecalibrator -R $ref_genome -I ${bam%.*}.realn.bam -o ${bam%.*}.recal_data.grp -knownSites ${bam%.*}.ordered.vcf
+fi
+$gatk_java -Xmx80g -Djava.io.tmpdir=$gatk_tmpfile -jar $software -T PrintReads -R $ref_genome -I ${bam%.*}.realn.bam -o ${bam%.*}.recal.bam -BQSR ${bam%.*}.recal_data.grp
+
+#$gatk4 HaplotypeCaller -R $ref_genome -I $bam -o ${bam%.*}.raw.vcf
+#$gatk4 SelectVariants -R ref.fa -V raw_variants.vcf -selectType SNP -o ${bam%.*}.raw.snp.vcf
+#$gatk4 SelectVariants -R ref.fa -V raw_variants.vcf -selectType INDEL -o ${bam%.*}.raw.indel.vcf
+#$gatk4 VariantFiltration \
+#        -R $ref_genome \
+#        -V raw_snps.vcf \
+#        -O filtered_snps.vcf \
+#        -filter-name "QD_filter" -filter "QD < 2.0" \
+#        -filter-name "FS_filter" -filter "FS > 60.0" \
+#        -filter-name "MQ_filter" -filter "MQ < 40.0" \
+#        -filter-name "SOR_filter" -filter "SOR > 4.0" \
+#        -filter-name "MQRankSum_filter" -filter "MQRankSum < -12.5" \
+#        -filter-name "ReadPosRankSum_filter" -filter "ReadPosRankSum < -8.0"
+#$gatk4 VariantFiltration \
+#        -R ref.fa \
+#        -V raw_indels.vcf \
+#        -O filtered_indels.vcf \
+#        -filter-name "QD_filter" -filter "QD < 2.0" \
+#        -filter-name "FS_filter" -filter "FS > 200.0" \
+#        -filter-name "SOR_filter" -filter "SOR > 10.0"
+#$gatk4 SelectVariants \
+#        --exclude-filtered \
+#        -V filtered_snps.vcf \
+#        -O bqsr_snps.vcf
+#$gatk4 SelectVariants \
+#        --exclude-filtered \
+#        -V filtered_indels.vcf \
+#        -O bqsr_indels.vcf
+#$gatk4 BaseRecalibrator -R ref.fa -I sorted_dedup_reads.bam --known-sites bqsr_snps.vcf --known-sites bqsr_indels.vcf -O recal_data.table
+#$gatk4 ApplyBQSR -R ref.fa -I sorted_dedup_reads.bam -bqsr recal_data.table -O recal_reads.bam 
+
+if [ $? = 0 ]; then
+rm ${bam%.*}.realn.bam
+fi
+
+done
+conda deactivate
+###job finished reminder
+echo "Finish at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+

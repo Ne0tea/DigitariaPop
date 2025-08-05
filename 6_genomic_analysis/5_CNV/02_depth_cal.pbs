@@ -1,0 +1,30 @@
+#!/bin/bash
+###define PBS arguments
+#PBS -N CNV_survey_02
+#PBS -l nodes=1:ppn=20,walltime=30:00:00:00,mem=50g
+#PBS -q low
+#PBS -j oe
+#PBS -o log_Dep
+set +u -e
+###job starting reminder
+
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+###job dir
+cd $PBS_O_WORKDIR
+
+#file
+###job command
+
+mkdir -p DEP_uniq_result && cd DEP_uniq_result
+
+cat $file | while read id;do
+sp=`basename ${id/.sorted.rmdup.bam/}`
+#sambamba-1.0.1 depth window --window-size 7000 --overlap 4000 -o ${sp}.7k4k.depth $id
+sambamba-1.0.1 depth window -F 'mapping_quality > 0 and not (unmapped or mate_is_unmapped or secondary_alignment or supplementary or duplicate or failed_quality_control)' --window-size 7000 --overlap 4000 -o ${sp}_uniq.7k4k.depth $id
+done
+
+cd ../
+###job finished reminder
+echo "Finish at"
+date -d +20minute +'%Y-%m-%d %H:%M:%S' 

@@ -1,0 +1,37 @@
+###define PBS arguments
+#PBS -N monomer-count
+#PBS -l nodes=node22:ppn=100,walltime=2400:00:00
+#PBS -q fat
+#PBS -j oe
+#PBS -o log_monomer-count_t100
+
+###job starting reminder
+echo "Starting job at:"
+date
+hostname
+
+###job dir
+cd $PBS_O_WORKDIR
+
+###job command
+
+export PATH="/public/home/xielj/miniconda3/bin:$PATH"
+source activate /public/home/xielj/miniconda3/envs/CentroMiner
+
+#### get count tables ####
+#python 00_monomer_dict_count.py -i ${prefix}
+
+#### representative tree ####
+#less intersection_ids.txt | while read MID seq length 
+#do
+#	echo ">${MID}" >> Selected_3642_representative.fasta
+#	echo "${seq}" >> Selected_3642_representative.fasta
+#done
+
+muscle -align Selected_3642_representative.fasta -output Selected_3642_representative_aligned_t100.fasta
+
+FastTreeMP -nt Selected_3642_representative_aligned_t100.fasta > Selected_3642_representative_aligned_t100.tree
+
+###job finished reminder
+echo "Finished at:"
+date

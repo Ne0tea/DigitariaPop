@@ -1,0 +1,44 @@
+#!/bin/bash
+###define PBS arguments
+
+#PBS -N hifi_mapping_depth
+#PBS -l nodes=1:ppn=20,walltime=30:00:00:00,mem=180g
+#PBS -q low
+#PBS -j oe
+#PBS -o log_hifi_mapping
+#set +u -e
+###job starting reminder
+
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+###job dir
+cd $PBS_O_WORKDIR
+###job command
+genome="/public4/home/huangyj/Digitaria/assembly/04gap_filler/Dsan_chr.V2.fa"
+tmp=${fq##*/}
+prefix=${tmp%%.*}
+threads=20
+#index ref firstly
+#pbmm2 index $genome ${genome%.*}.mmi --preset SUBREAD
+#-----------------------------------------------------------------
+#seqkit fq2fa -o ${prefix}.fa $fq
+#winnowmap -t 20 --MD -Y -ax map-pb $genome ${prefix}.fa  > ./Bam/${prefix}.sam
+#rm ${prefix}.fa
+#-----------------------------------------------------------------
+
+minimap2 -ax map-hifi -t $threads $genome /public4/home/huangyj/Digitaria/Dsan_ref_data/HiFi/Dsan_hifi.fq.gz -o HDR7_hifi.sam
+sambamba-1.0.1 view -t $threads -S -h -f bam -o HDR7_hifi.bam HDR7_hifi.sam
+sambamba-1.0.1 sort -t $threads HDR7_hifi.bam
+if [ $? = 0 ]; then
+   rm HDR7_hifi.sam
+   rm HDR7_hifi.bam
+fi
+sambamba-1.0.1 flagstat HDR7_hifi.sorted.bam > HDR7_hifi.flagstat
+sambamba-1.0.1 depth window -F 'not duplicate' -t $threads --window-size 10000 --overlap 5000 -o HDR7_hifi.10k5k.depth HDR7_hifi.sorted.bam
+
+echo "${prefix} done"
+
+
+###job finished reminder
+echo "Finish at"
+date -d +20minute +'%Y-%m-%d %H:%M:%S' 

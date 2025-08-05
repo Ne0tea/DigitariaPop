@@ -1,0 +1,32 @@
+#!/bin/bash
+#PBS -N Nucl_SignalP
+#PBS -l nodes=1:ppn=10,walltime=14400:00:00,mem=50g
+#PBS -q low
+#PBS -j oe
+#PBS -o log_SignalP
+
+echo "Starting job at:"
+date
+hostname
+
+cd $PBS_O_WORKDIR
+source activate /public/home/huangyj/anaconda3/envs/signalp6
+#fasta file in nucl format
+#fa
+#outpre_singal_result that would be created
+#outpre
+
+# if nucl fasta file
+# /public3/labmember/gongxj/F_box/software/my_interproscan/interproscan-5.65-97.0/bin/nucleotide/translate -i $fa -o ${fa%.*}.orfs.fa
+# /public3/labmember/gongxj/F_box/software/my_interproscan/interproscan-5.65-97.0/interproscan.sh -i ${fa%.*}.orfs.fa
+
+# if Amino acid fasta file
+/public3/labmember/gongxj/F_box/software/my_interproscan/interproscan-5.65-97.0/interproscan.sh -appl Pfam -f TSV -i $fa -cpu 10 -b $prefix -goterms -iprlookup -pa -dp
+#/public3/labmember/gongxj/F_box/software/my_interproscan/interproscan-5.65-97.0/interproscan.sh -appl CDD,COILS,Gene3D,HAMAP,MobiDBLite,PANTHER,Pfam,PIRSF,PRINTS,PROSITEPATTERNS,PROSITEPROFILES,SFLD,SMART,SUPERFAMILY,TIGRFAM -f TSV -i $fa -cpu 10 -b $prefix -goterms -iprlookup -pa -dp
+
+# if with signalp6 annotate
+#signalp6 --fastafile ${fa%.*}.orfs.fa --organism eukarya --output_dir ${outpre}_signal_result --format txt --mode fast
+
+echo "Finished at:"
+date
+

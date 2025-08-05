@@ -1,0 +1,27 @@
+#!/bin/bash
+###define PBS arguments
+#PBS -N swissprot_anno
+#PBS -l nodes=1:ppn=20,walltime=24000:00:00
+#PBS -q low
+#PBS -j oe
+#PBS -o log_swissprot
+
+###job starting reminder
+echo "Starting job at:"
+date
+hostname
+
+###job dir
+cd $PBS_O_WORKDIR
+
+source activate /public/home/huangyj/anaconda3/envs/r_p
+###job command
+#fa
+#prefix
+database='/public/home/huangyj/Database/swiss_database/uniprot_sprot.fasta'
+
+blastp -db ${database} -query $fa -out ${prefix}_swiss.blast -evalue 1e-10 -outfmt 6 -num_threads 20
+
+###job finished reminder
+echo "Finished at:"
+date

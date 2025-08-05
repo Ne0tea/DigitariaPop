@@ -1,0 +1,97 @@
+#!/bin/bash
+###define PBS arguments
+
+#PBS -N rmdup_BQSR
+#PBS -l nodes=1:ppn=1,walltime=30:00:00:00
+#PBS -q low
+#PBS -j oe
+#PBS -o log_rmdup_BQSR
+
+###job starting reminder
+echo $USER
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+set -e 
+set -u
+
+###job dir
+cd $PBS_O_WORKDIR
+###variable
+gatk4='/public/home/huangyj/software/gatk-4.4.0.0/gatk'
+build_dict_script="/public/home/huangyj/anaconda3/envs/population/share/picard-2.18.23-0/picard.jar"
+threads=1
+ref_genome='/public4/home/huangyj/Digitaria/chloro_assembly/YJ2023/YJ2023_Chlo.fasta'
+###job command
+source activate /public/home/huangyj/anaconda3/envs/population 
+#---------------------------------input set----------------------------------
+#give $bam
+for bam in `cat $file`
+do
+tmp=${bam##*/}
+sample=${tmp%%_*}
+mkdir -p /public4/home/huangyj/Digitaria/population/Bam_recal/${sample}_tmpfile
+gatk_tmpfile=/public4/home/huangyj/Digitaria/population/Bam_recal/${sample}_tmpfile
+
+if [ ! -s ${bam}.bai ] ; then
+sambamba-1.0.1 index -t $threads ${bam}
+fi
+
+if [ ! -s ${bam%.*}.rmdup.bam ] ; then
+sambamba-1.0.1 markdup --tmpdir $gatk_tmpfile -r -t $threads $bam ${bam%.*}.rmdup.bam
+sambamba-1.0.1 index -t $threads ${bam%.*}.rmdup.bam
+#picard -Xmx80g MarkDuplicates I=$bam O=${bam%.*}.rmdup.bam CREATE_INDEX=ture REMOVE_DUPLICATES=ture M=${bam%.*}.marked_dup_metrics.txt
+fi
+
+###GATK默认线程即4
+if [ ! -s ${bam%.*}.ordered.vcf ] ; then
+$gatk4 HaplotypeCaller -R $ref_genome -I $bam -O ${bam%.*}.ordered.vcf
+fi
+$gatk4 SelectVariants -R $ref_genome -V ${bam%.*}.ordered.vcf -select-type SNP -O ${bam%.*}.raw.snp.vcf
+$gatk4 SelectVariants -R $ref_genome -V ${bam%.*}.ordered.vcf -select-type INDEL -O ${bam%.*}.raw.indel.vcf
+$gatk4 VariantFiltration \
+        -R $ref_genome \
+        -V ${bam%.*}.raw.snp.vcf \
+        -O ${bam%.*}.filtered.snp.vcf \
+        -filter-name "QD2" -filter "QD < 2.0" \
+        -filter-name "FS60" -filter "FS > 60.0" \
+        -filter-name "MQ40" -filter "MQ < 40.0" \
+        -filter-name "SOR4" -filter "SOR > 4.0" \
+        -filter-name "MQRankSum-12.5" -filter "MQRankSum < -12.5" \
+        -filter-name "ReadPosRankSum-8" -filter "ReadPosRankSum < -8.0"
+$gatk4 VariantFiltration \
+        -R $ref_genome \
+        -V ${bam%.*}.raw.indel.vcf \
+        -O ${bam%.*}.filtered.indel.vcf \
+        -filter-name "QD_filter" -filter "QD < 2.0" \
+        -filter-name "FS_filter" -filter "FS > 200.0" \
+        -filter-name "SOR_filter" -filter "SOR > 10.0"
+$gatk4 SelectVariants \
+        --exclude-filtered \
+        -V ${bam%.*}.filtered.snp.vcf \
+        -O ${bam%.*}.filtered.snp.bqsr.vcf
+$gatk4 SelectVariants \
+        --exclude-filtered \
+        -V ${bam%.*}.filtered.indel.vcf \
+        -O ${bam%.*}.filtered.indel.bqsr.vcf
+$gatk4 BaseRecalibrator -R $ref_genome -I $bam --known-sites ${bam%.*}.filtered.snp.bqsr.vcf --known-sites ${bam%.*}.filtered.indel.bqsr.vcf -O ${bam%.*}.recal4_data.table
+$gatk4 ApplyBQSR -R $ref_genome -I $bam -bqsr ${bam%.*}.recal4_data.table -O ${bam%.*}.recal4.bam
+#$gatk4 BaseRecalibrator -R $ref_genome -I ${bam%.*}.recal4.bam --known-sites ${bam%.*}.filtered.snp.bqsr.vcf --known-sites ${bam%.*}.filtered.indel.bqsr.vcf -O ${bam%.*}.post_recal4_data.table
+#$gatk4 AnalyzeCovariates -before ${bam%.*}.recal4_data.table -after ${bam%.*}.post_recal4_data.table -plots ${bam%.*}.bqsr_plot.pdf  -csv ${bam%.*}.recal4_data.csv
+#~/anaconda3/envs/draw_env/bin/Rscript $BQSR_script ${bam%.*}.recal4_data.csv ${bam%.*}.recal4_data.table ${bam%.*}.bqsr_plot.pdf
+
+if [ $? = 0 ]; then
+#rm ${bam%.*}.realn.bam
+rm ${bam%.*}.filtered.snp.bqsr.vcf
+rm ${bam%.*}.filtered.indel.bqsr.vcf
+rm ${bam%.*}.filtered.indel.vcf
+rm ${bam%.*}.filtered.snp.vcf
+rm ${bam%.*}.raw.indel.vcf
+rm ${bam%.*}.raw.snp.vcf
+fi
+
+done
+conda deactivate
+###job finished reminder
+echo "Finish at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+

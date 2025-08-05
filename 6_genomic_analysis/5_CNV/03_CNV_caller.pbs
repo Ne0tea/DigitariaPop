@@ -1,0 +1,37 @@
+#!/bin/bash
+###define PBS arguments
+#PBS -N CNV_survey
+#PBS -l nodes=1:ppn=5,walltime=30:00:00:00,mem=5g
+#PBS -q low
+#PBS -j oe
+#PBS -o log_CNV
+set +u -e
+###job starting reminder
+
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+###job dir
+cd $PBS_O_WORKDIR
+source activate /public/home/huangyj/anaconda3/envs/cnv_pip
+
+snp_gzfile="/public4/home/huangyj/Digitaria/population_downanalysis/vcf_filt/all_gatk3/Dsan_all.merge.gatk3.vcf.gz"
+CNV_config="/public4/home/huangyj/Digitaria/genomic_analysis/CNV_analysis/Digitaria_ref_genome_conf.py"
+#file
+
+###job command
+mkdir -p CNV_result && cd CNV_result
+pwd
+cat $file | while read id;do
+sp=`basename ${id/.sorted.rmdup.bam/}`
+cnvpytor -conf $CNV_config -root ${sp}.pytor -mask_snps
+cnvpytor -conf $CNV_config -root ${sp}.pytor -baf 10000 50000
+#cnvpytor -conf $CNV_config -root ${sp}.pytor -call combined 10000 > ../CNV_caller_result/${sp}_10k.dep
+#cnvpytor -conf $CNV_config -root ${sp}.pytor -call combined 50000 > ../CNV_caller_result/${sp}_50k.dep
+
+done
+
+cd ../
+conda deactivate
+###job finished reminder
+echo "Finish at"
+date -d +20minute +'%Y-%m-%d %H:%M:%S' 

@@ -1,0 +1,55 @@
+#PBS -N asset
+#PBS -l nodes=1:ppn=20,walltime=30:00:00:00,mem=180g
+#PBS -q batch2
+#PBS -j oe
+#PBS -o log_asset
+
+echo "Starting"
+date
+hostname
+
+source activate /public/home/huangyj/anaconda3/envs/r_p
+
+cd $PBS_O_WORKDIR
+##arguments
+ast_dir='/public/home/huangyj/software/asset-master/bin'
+asm='/public4/home/huangyj/Digitaria/assembly/03polish/Dsan_chr.np2.fa'
+#r1 HiC r1
+r1='/public4/home/huangyj/Digitaria/Dsan_ref_data/HIC/FDHC230028233-1a_L2_1.fq.gz'
+#r2 HiC r2
+r2='/public4/home/huangyj/Digitaria/Dsan_ref_data/Ngseq/Dsan_ref_2.clean.fq.gz'
+fl='/public4/home/huangyj/Digitaria/Dsan_ref_data/HiFi/Dsan_hifi.fq.gz'
+hifi_paf='/public4/home/huangyj/Digitaria/Dsan_ref_data/HiFi/Dsan_hifi.fq_np2.paf'
+output_dir='./asset_out'
+threads=20
+##job area
+mkdir -p $output_dir
+
+${ast_dir}/detgaps $asm > $output_dir/gaps.bed
+#minimap2 -x map-pb -t 20 $asm $fl > hifi_temp.paf
+
+#${ast_dir}/ast_pb hifi_temp.paf > $output_dir/pb.bed 2>ast_pb.log
+
+#${ast_dir}/split_fa $asm > split.fa
+samtools faidx split.fa 
+bwa index split.fa
+#while read -r r1 r2
+#do
+#	prefix=`basename $r1 .fq.gz`
+#	dirn=`dirname $r1`
+	bwa mem -SP -B10 -t12 split.fa $r1 $r2 | samtools view -b - > asset_sgs.bam
+#done < $hiclist
+${ast_dir}/col_conts asset_sgs.bam > $output_dir/links.mat
+${ast_dir}/ast_hic2 split.fa.fai $output_dir/links.mat >$output_dir/hic2.bed 2>ast_hic.log
+
+${ast_dir}/acc $output_dir/gaps.bed $output_dir/pb.bed > $output_dir/pb_bn.bed 
+${ast_dir}/acc $output_dir/gaps.bed $output_dir/hic2.bed > $output_dir/10x_hic2_bn.bed  
+
+${ast_dir}/pchlst -c $output_dir/gaps.bed $output_dir/pb_bn.bed > $output_dir/pchlst_ctg.bed
+${ast_dir}/pchlst $output_dir/gaps.bed $output_dir/10x_hic2_bn.bed > $output_dir/pchlst_scaf.bed 
+${ast_dir}/union_brks $output_dir/gaps.bed $output_dir/pchlst_{ctg,scaf}.bed > $output_dir/pchlst_final.bed
+
+conda deactivate
+
+echo "Finished"
+date

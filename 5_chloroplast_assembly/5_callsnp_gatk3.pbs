@@ -1,0 +1,73 @@
+#!/bin/bash
+###define PBS arguments
+
+#PBS -N SNP_caller
+#PBS -l nodes=1:ppn=20,walltime=30:00:00:00,mem=180g
+#PBS -q low
+#PBS -j oe
+#PBS -o log_caller
+
+###job starting reminder
+echo $USER
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+set +u -e
+
+###job dir
+cd $PBS_O_WORKDIR
+###variable
+software="/public/home/wudy/software/gatk3-7/GenomeAnalysisTK.jar"
+build_dict_script="/public/home/huangyj/anaconda3/envs/population/share/picard-2.18.23-0/picard.jar"
+combine_script="/public/home/huangyj/HLW/assembly/last_quality/_4_combine_vcf_file.pl"
+filter_script="/public/home/huangyj/HLW/assembly/last_quality/_4_GATKcalling_filtering.pl"
+workdir="/public4/home/huangyj/Digitaria/chloro_assembly/SNP_dir"
+snp_script="/public3/labmember/huangyj/Tobacco/population/joint_calling/_3_genotyping_pipeline_SNP.pl"
+indel_script="/public3/labmember/huangyj/Tobacco/population/joint_calling/_3_genotyping_pipeline_INDEL.pl"
+###job command
+source activate /public/home/huangyj/anaconda3/envs/population 
+#---------------------------------input set----------------------------------
+#sp
+#bam_recal
+ref2chr="/public4/home/huangyj/Digitaria/chloro_assembly/YJ2023/YJ2023_Chlo.fasta"
+#----------------------------------build samtools index----------------------
+mkdir -p $workdir/${sp}
+cd $workdir/${sp}
+if [ ! -e ${ref2chr}.fai ] ;then
+samtools faidx ${ref2chr}
+fi
+cat ${ref2chr}.fai | cut -f 1 > temp_${sp}
+#----------------------------------build picard dict-------------------------
+if [ ! -e ${ref2chr%.*}.dict ] ;then
+/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.131-11.b12.el7.x86_64/jre/bin/java -Xmx45g -jar $build_dict_script CreateSequenceDictionary R=${ref2chr} O=${ref2chr%.*}.dict
+fi
+
+if [ -s ${sp}_merged.vcf ]; then
+rm ${sp}_merged.vcf
+rm ${sp}_indel_merged.vcf
+fi
+perl $snp_script ${bam_recal} /public4/home/huangyj/Digitaria/chloro_assembly/YJ2023/YJ2023_Chlo_chr.list ${ref2chr}
+perl $indel_script ${bam_recal} /public4/home/huangyj/Digitaria/chloro_assembly/YJ2023/YJ2023_Chlo_chr.list ${ref2chr}
+
+#-------------------------------combine snp and filter-----------------------------------
+ls $workdir/${sp}/*vcf > ./cursnp_list
+perl $combine_script  ./cursnp_list $workdir/${sp}/${sp}_merged.vcf
+perl $filter_script $workdir/${sp}/${sp}_merged.vcf snp
+if [ $? -ne 0 ]; then
+rm ${sp}_merged.vcf
+fi
+#-------------------------------combine indel and filter----------------------------------
+ls $workdir/${sp}/*vcfindel > ./curindel_list
+perl $combine_script  ./curindel_list $workdir/${sp}/${sp}_indel_merged.vcf
+perl $filter_script $workdir/${sp}/${sp}_indel_merged.vcf indel
+if [ $? -ne 0 ]; then
+rm ${sp}_indel_merged.vcf
+fi
+
+cd $workdir
+
+#done
+conda deactivate
+###job finished reminder
+echo "Finish at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+

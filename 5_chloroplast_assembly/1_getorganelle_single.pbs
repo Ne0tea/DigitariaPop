@@ -1,0 +1,31 @@
+#!/bin/bash
+#PBS -N Getorganelle
+#PBS -l nodes=1:ppn=20,walltime=30:00:00:00,mem=40g
+#PBS -q low
+#PBS -j oe
+#PBS -o log_getorganelle
+
+set +u -e
+echo "Starting job at:"
+date
+hostname
+
+cd $PBS_O_WORKDIR
+
+source activate /public/home/huangyj/anaconda3/envs/getorganelle
+###variable
+#file
+###command
+mkdir -p ${file}.chlo_asm && cd ${file}.chlo_asm
+cat ../${file} | while read id;do 
+arr=(${id})
+fq1=${arr[0]}
+fq2=${arr[1]}
+temp=${fq1##*/}
+pre=${temp%_*}
+get_organelle_from_reads.py -1 $fq1 -2 $fq2 --fast -w 95 -F embplant_pt -o $pre -t 20 -k 21,45,65,85,105 --overwrite
+done
+
+conda deactivate
+echo "Finished at:"
+date

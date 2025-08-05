@@ -1,0 +1,39 @@
+#!/bin/bash
+###define PBS arguments
+#PBS -N mcm_predata
+#PBS -l nodes=1:ppn=20,walltime=30:00:00:00,mem=500g
+#PBS -q fat
+#PBS -j oe
+#PBS -o log_mcm_predata
+
+###job starting reminder
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+###job dir
+cd $PBS_O_WORKDIR
+
+###job command
+source activate /public/home/huangyj/anaconda3/envs/paml
+sp_id="/public4/home/huangyj/Digitaria/genomic_analysis/phylogeny/Ultral_tree/batch2_0508/species_id"
+cds_path="/public4/home/huangyj/Digitaria/genomic_analysis/phylogeny/Ultral_tree/batch2_0508/CDS_database"
+ortho_path="/public4/home/huangyj/Digitaria/genomic_analysis/phylogeny/orthologue/ref/OrthoFinder/Results_May09"
+ln -s ${ortho_path}/Orthogroups/Orthogroups_SingleCopyOrthologues.txt .
+ln -s ${ortho_path}/Orthogroups/Orthogroups.txt .
+ln -s ${ortho_path}/Species_Tree/SpeciesTree_rooted.txt .
+
+cat ${cds_path}/*cds.fa* > all.cds.fasta
+mkdir -p CDSfile #存放单个文件cds序列
+for i in `cat Orthogroups_SingleCopyOrthologues.txt`;do grep $i Orthogroups.txt|sed 's/ /\n/g' |sed '1d' > CDSfile/${i}.id ;done
+
+for i in `cat Orthogroups_SingleCopyOrthologues.txt`;do 
+get_fasta_from_id.pl -s all.cds.fasta -f CDSfile/${i}.id  
+python ~/software/convert_cds_id.py CDSfile/${i}.id.fasta CDSfile/${i}.cds $sp_id
+done 
+
+#比对,形成phy格式（如果单拷贝基因选得比较多，比对时间会稍微有点长）
+for i in `cat Orthogroups_SingleCopyOrthologues.txt`;do muscle -quiet -in CDSfile/${i}.cds -physout CDSfile/${i}.phy;done
+cat CDSfile/*.phy > all.singlecopy.phy
+
+conda deactivate
+echo "Finished at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'

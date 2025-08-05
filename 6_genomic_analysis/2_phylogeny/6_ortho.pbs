@@ -1,0 +1,20 @@
+###define PBS arguments
+
+#PBS -N Orthogroup
+#PBS -l nodes=1:ppn=50,walltime=30:00:00:00
+#PBS -q fat
+#PBS -j oe
+#PBS -o log_ortho_fasttree
+
+###job starting reminder
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+###job dir
+cd $PBS_O_WORKDIR
+
+###job command
+source activate /public/home/huangyj/anaconda3/envs/compare_g
+orthofinder -f ref -S diamond -M msa -T fasttree -t 50
+conda deactivate
+echo "Finished at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'

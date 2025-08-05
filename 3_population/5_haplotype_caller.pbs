@@ -1,0 +1,81 @@
+#!/bin/bash
+###define PBS arguments
+
+#PBS -N Haplotyper_caller
+#PBS -l nodes=1:ppn=4,walltime=30:00:00:00,mem=60g
+#PBS -q fat
+#PBS -j oe
+#PBS -o log_Hcaller
+
+###job starting reminder
+echo $USER
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+set -e 
+set -u
+
+###job dir
+cd $PBS_O_WORKDIR
+###variable
+gatk_java='/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.262.b10-1.el7.x86_64/jre/bin/java'
+build_dict_script="/public/home/huangyj/anaconda3/envs/population/share/picard-2.18.23-0/picard.jar"
+gatk4='/public/home/huangyj/software/gatk-4.4.0.0/gatk'
+threads=4
+ref_genome='/public4/home/huangyj/Digitaria/assembly/04gap_filler/Dsan_chr.V2.fa'
+###job command
+source activate /public/home/huangyj/anaconda3/envs/population 
+#---------------------------------input set----------------------------------
+#give $bam
+mkdir -p /public4/home/huangyj/Digitaria/population/SNP_single_caller
+for bam in `cat $file`
+do
+tmp=${bam##*/}
+sample=${tmp%%_*}
+
+##make tmp dir
+mkdir -p /public4/home/huangyj/Digitaria/population/SNP_single_caller/${sample}_tmpfile
+gatk_tmpfile=/public4/home/huangyj/Digitaria/population/SNP_single_caller/${sample}_tmpfile
+##single SNP caller
+mkdir -p /public4/home/huangyj/Digitaria/population/SNP_single_caller/${sample}_single
+single_snp_dir=/public4/home/huangyj/Digitaria/population/SNP_single_caller/${sample}_single
+
+if [ -s ${single_snp_dir}/${sample}.merge.g.vcf.gz ] ; then
+    continue
+else
+    echo 1111 > ${single_snp_dir}/${sample}.merge.g.vcf.gz
+fi
+
+###GATK默认线程即4
+##single caller
+if [ ! -s ${ref_genome}.fai ] ; then
+samtools faidx ${ref_genome}
+fi
+##if each chr caller done while merge not complete
+if [ -s ${single_snp_dir}/${sample}_scaffold_420.g.vcf.gz ] ; then
+	gvcf_list=''
+	for chr in `cut -f 1 ${ref_genome}.fai` ;
+	do
+		gvcf_list+="-V ${single_snp_dir}/${sample}_${chr}.g.vcf.gz "
+	done
+	$gatk4 --java-options "-Xmx60G" CombineGVCFs --tmp-dir $gatk_tmpfile -R $ref_genome $gvcf_list  -O ${single_snp_dir}/${sample}.merge.g.vcf.gz
+	continue
+fi
+##------------------------------------------------
+
+gvcf_list=''
+for chr in `cut -f 1 ${ref_genome}.fai` ;
+do
+	gvcf_list+="-V ${single_snp_dir}/${sample}_${chr}.g.vcf.gz "
+	#$gatk4 --java-options "-Xmx60G" HaplotypeCaller --tmp-dir $gatk_tmpfile -R $ref_genome -I $bam  -ERC GVCF --sample-ploidy 6 -stand-call-conf 30 -L $chr  -O ${single_snp_dir}/${sample}_${chr}.g.vcf.gz
+    $gatk4 --java-options "-Xmx60G" HaplotypeCaller --tmp-dir $gatk_tmpfile -R $ref_genome -I $bam  -ERC GVCF -stand-call-conf 30 -L $chr  -O ${single_snp_dir}/${sample}_${chr}.g.vcf.gz
+done
+
+##gvcf combine in each chro
+$gatk4 --java-options "-Xmx60G" CombineGVCFs --tmp-dir $gatk_tmpfile -R $ref_genome $gvcf_list  -O ${single_snp_dir}/${sample}.merge.g.vcf.gz
+
+done
+conda deactivate
+###job finished reminder
+echo "Finish at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+

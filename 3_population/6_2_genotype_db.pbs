@@ -1,0 +1,54 @@
+#!/bin/bash
+###define PBS arguments
+
+#PBS -N Genotype_based_on_db
+#PBS -l nodes=1:ppn=4,walltime=30:00:00:00,mem=80g
+#PBS -q low
+#PBS -j oe
+#PBS -o log_Gvcf_db_build
+
+###job starting reminder
+echo $USER
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+set -e 
+set -u
+
+###job dir
+cd $PBS_O_WORKDIR
+###variable
+gatk4='/public/home/huangyj/software/gatk-4.4.0.0/gatk'
+threads=4
+ref_genome='/public4/home/huangyj/Digitaria/assembly/04gap_filler/Dsan_chr.V2.fa'
+###job command
+source activate /public/home/huangyj/anaconda3/envs/population 
+#---------------------------------input set----------------------------------
+#give chr
+mkdir -p /public4/home/huangyj/Digitaria/population/Temp_SNP_joint_caller
+gatk_tmpfile=/public4/home/huangyj/Digitaria/population/Temp_SNP_joint_caller
+
+##get fasta idx
+if [ ! -s ${ref_genome}.fai ] ; then
+samtools faidx ${ref_genome}
+fi
+
+##gvcf combine in one gvcf
+mkdir -p all_chr_genotype
+##for single chromosome
+#for chr in Chr04 Chr05 Chr06 Chr09 Chr08 Chr13 Chr19; do qsub -N geno_${chr} -o log_geno_${chr} -v chr=${chr} 7_2_genotype_db.pbs ;done
+$gatk4 --java-options "-Xmx80g" GenotypeGVCFs -R $ref_genome -stand-call-conf 30 -V gendb://all_chr_gvcf_db/all_587_database_${chr} -L ${chr} -O all_chr_genotype/${chr}_gatk4.vcf
+
+##for multiple scaffold
+#qsub -N geno_scaffold -o log_geno_scaffold 7_2_genotype_db.pbs
+#chr_list=''
+#for chr in `cut -f 1 ${ref_genome}.fai | grep scaffold` ;
+#do
+#    chr_list+="-L $chr "
+#done
+#$gatk4 --java-options "-Xmx80g" GenotypeGVCFs -R $ref_genome -stand-call-conf 30 -V gendb://all_chr_gvcf_db/all_587_database_scaffold $chr_list -O all_chr_genotype/Chr_scaffold_gatk4.vcf
+
+conda deactivate
+###job finished reminder
+echo "Finish at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+

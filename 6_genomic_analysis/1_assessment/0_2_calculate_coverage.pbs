@@ -1,0 +1,38 @@
+#!/bin/bash
+###define PBS arguments
+#PBS -N Cal_coverage
+#PBS -l nodes=1:ppn=1,walltime=2400:00:00
+#PBS -q low
+#PBS -j oe
+#PBS -o log_Cal_coverage
+
+###job starting reminder
+echo "Starting job at:"
+date
+hostname
+
+###job dir
+
+cd $PBS_O_WORKDIR
+#---------------------------variable-----------------------------
+#bam
+#
+target_dst_dir='/public4/home/huangyj/Digitaria/genomic_analysis/assessment/dst_result'
+
+temp=${bam/.sorted.bam/}
+sample=${temp##*/}
+fa=/public4/home/huangyj/Digitaria/New_assemble/04_assessment/YZGJ2_Chr.fasta
+#generate coverage bed file
+#cat $fai |awk '{print $1"\t1\t"$2}' > $fa_bed
+fa_bed='/public4/home/huangyj/Digitaria/New_assemble/04_assessment/YZGJ2_Chr.bed'
+
+#---------------------------Coverage-----------------------------
+mkdir -p $target_dst_dir
+target_dir=${target_dst_dir}/${sample}
+mkdir -p $target_dir
+~/software/bamdst/bamdst -p $fa_bed $bam -o $target_dir
+
+
+echo "Finishing job at:"
+date
+

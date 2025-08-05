@@ -1,0 +1,100 @@
+###define PBS arguments
+
+#PBS -N wgdi_pre
+#PBS -l nodes=1:ppn=10,walltime=30:00:00:00
+#PBS -q low
+#PBS -j oe
+#PBS -o log_wgdi_pre
+
+###job starting reminder
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+###job dir
+cd $PBS_O_WORKDIR
+
+###job command
+source activate /public/home/huangyj/anaconda3/envs/wgdi
+
+#~/anaconda3/envs/tophat/bin/gffread
+##set ref argument
+r_genome="/public4/home/huangyj/Digitaria/related_ref/Dsan_chr.V2.27chr.fa"
+r_gff="/public4/home/huangyj/Digitaria/annotation/Dsan_V2.ord.gff3"
+r_prefix="Dsan"
+
+##set query argument
+#q_genome="/public4/home/huangyj/Digitaria/assembly/04gap_filler/Dsan_chr.V2.fa"
+#q_gff="/public4/home/huangyj/Digitaria/annotation/Dsan_V2.ord.gff3"
+#q_prefix="Dsan"
+
+if [ ! -s ${r_genome}.fai] ; then
+samtools faidx $r_genome
+fi
+
+if [ ! -s ${q_genome}.fai] ; then
+samtools faidx $q_genome
+fi
+
+#python输出共线性需要的gff和len文件
+if [ ! -s ${r_prefix}.len ] ; then 
+python generate_conf.py -p $r_prefix $r_genome $r_gff
+fi
+if [ ! -s ${q_prefix}.len ] ; then
+python generate_conf.py -p $q_prefix $q_genome $q_gff
+fi
+
+if [ ! -s ${r_prefix}_r.prot.fasta ] ; then
+awk 'NR==FNR{a[$1]; next} $1 in a' ${r_genome}.fai $r_gff > ${r_prefix}.temp.gff3
+~/anaconda3/envs/tophat/bin/gffread ${r_prefix}.temp.gff3 -g $r_genome -y ${r_prefix}.prot.fasta
+/public/home/huangyj/software/stop_codon_replace.py ${r_prefix}.prot.fasta > ${r_prefix}_r.prot.fasta
+r_prot=${r_prefix}_r.prot.fasta
+fi
+if [ ! -s ${q_prefix}_q.fasta ] ; then
+awk 'NR==FNR{a[$1]; next} $1 in a' ${q_genome}.fai $q_gff > ${q_prefix}.temp.gff3
+~/anaconda3/envs/tophat/bin/gffread ${q_prefix}.temp.gff3 -g $q_genome -y ${q_prefix}.prot.fasta
+/public/home/huangyj/software/stop_codon_replace.py ${q_prefix}.prot.fasta > ${q_prefix}_q.prot.fasta
+q_prot=${q_prefix}_q.prot.fasta
+fi
+
+#make blastp result
+if [ ! -s ${r_prefix}.dmnd ] ; then
+diamond makedb --in ${r_prot} -d ${r_prefix}
+#~/anaconda3/envs/r_p/bin/makeblastdb -in $r_prot -dbtype prot -out $r_prefix
+fi
+if [ ! -s ${q_prefix}_${r_prefix}.blastp.txt ] ; then
+diamond blastp -d ${r_prefix} -q ${q_prot} -o ${q_prefix}_${r_prefix}.blastp.txt -f 6 -p 10 -e 1e-5
+#~/anaconda3/envs/r_p/bin/blastp -num_threads 20 -db $r_prefix -query $q_prot -outfmt 6 -evalue 1e-5 -num_alignments 20  -out ${q_prefix}_${r_prefix}.blastp.txt
+fi
+
+wgdi -d \? > ${q_prefix}_${r_prefix}.conf
+sed -i -e "s/blast file/${q_prefix}_${r_prefix}.blastp.txt/g" \
+-e "s/gff1 file/${q_prefix}.gff/g" \
+-e "s/gff2 file/${r_prefix}.gff/g" \
+-e "s/lens1 file/${q_prefix}.len/g" \
+-e "s/lens2 file/${r_prefix}.len/g" \
+-e "s/Genome1 name/${q_prefix}/g" \
+-e "s/Genome2 name/${r_prefix}/g" \
+#-e "s/1e-5/1e-10/g" \
+#-e "s/repeat_number = 10/repeat_number = 50/g" \
+-e "s/savefile(.png, .pdf, .svg)/${q_prefix}_${r_prefix}.png/g" \
+-e "s/ancestor file or none/none/g" ${q_prefix}_${r_prefix}.conf
+wgdi -d ${q_prefix}_${r_prefix}.conf
+
+wgdi -icl \? >> ${q_prefix}_${r_prefix}.conf
+sed -i -e "s/blast file/${q_prefix}_${r_prefix}.blastp.txt/g" \
+-e "s/gff1 file/${q_prefix}.gff/g" \
+-e "s/gff2 file/${r_prefix}.gff/g" \
+-e "s/lens1 file/${q_prefix}.len/g" \
+-e "s/lens2 file/${r_prefix}.len/g" \
+-e "s/pvalue = 1/pvalue = 0.1/g" \
+-e "s/collinearity file/${q_prefix}_${r_prefix}.icl.csv/g" ${q_prefix}_${r_prefix}.conf
+wgdi -icl ${q_prefix}_${r_prefix}.conf
+
+#wgdi -ks \? >> HLW.conf
+#wgdi -ks HLW.conf
+#wgdi -bi ? >> HLW.conf
+#wgdi -pf ? >> HLW.conf
+#wgdi -kf ? >> HLW.conf
+
+conda deactivate
+echo "Finished at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'

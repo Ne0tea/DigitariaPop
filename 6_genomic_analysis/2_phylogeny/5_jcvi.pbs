@@ -1,0 +1,55 @@
+#!/bin/bash
+###define PBS arguments
+
+#PBS -N coll_jcvi
+#PBS -l nodes=1:ppn=1,walltime=30:00:00:00
+#PBS -q low
+#PBS -j oe
+#PBS -o log_jcvi
+set +u -e
+###job starting reminder
+
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+###job dir
+cd $PBS_O_WORKDIR
+###variable
+#sp1gff="/public/home/huangyj/HLW/HLW_ref/HLW_seq16/HLW_seq16.gff3"
+#sp1genome=""
+#sp2gff="/public/home/huangyj/HLW/HLW_ref/HLW_seq16/HLW_seq16.gff3"
+#sp2genome=""
+#prefix
+###job command
+mkdir -p $prefix
+cd $prefix
+source activate /public/home/huangyj/anaconda3/envs/tophat
+gffread $sp1gff -g $sp1genome -x temp1_cds -y temp1_pep
+gffread $sp2gff -g $sp2genome -x temp2_cds -y temp2_pep
+sp1cds=temp1_cds
+sp1pep=temp1_pep
+sp2cds=temp2_cds
+sp2pep=temp2_pep
+source activate /public/home/huangyj/anaconda3/envs/jcvi
+python -m jcvi.formats.gff bed --type=mRNA --key=ID $sp1gff > sp1.bed
+python -m jcvi.formats.gff bed --type=mRNA --key=ID $sp2gff > sp2.bed
+python -m jcvi.formats.bed uniq sp1.bed
+python -m jcvi.formats.bed uniq sp2.bed
+# Athaliana
+seqkit grep -f <(cut -f 4 sp1.uniq.bed ) $sp1cds | seqkit seq -i > sp1.cds
+seqkit grep -f <(cut -f 4 sp1.uniq.bed ) $sp1pep | seqkit seq -i > sp1.pep 
+# Osativa
+seqkit grep -f <(cut -f 4 sp2.uniq.bed )  $sp2cds | seqkit seq -i  > sp2.cds
+seqkit grep -f <(cut -f 4 sp2.uniq.bed ) $sp2pep | seqkit seq -i  > sp2.pep
+mkdir -p ${prefix}_com && cd ${prefix}_com
+ln -s ../sp1.cds sp1.cds
+ln -s ../sp1.uniq.bed sp1.bed
+ln -s ../sp2.cds sp2.cds
+ln -s ../sp2.uniq.bed sp2.bed
+python -m jcvi.compara.catalog ortholog --no_strip_names sp1 sp2
+conda deactivate
+#python -m jcvi.compara.synteny screen --minspan=30 --simple sp1.sp2.anchors sp1.sp2.anchors.new
+#python -m jcvi.graphics.dotplot grape.peach.anchors
+#python -m jcvi.graphics.karyotype seqid layout --nocircles
+###job finished reminder
+echo "Finish at"
+date -d +20minute +'%Y-%m-%d %H:%M:%S' 

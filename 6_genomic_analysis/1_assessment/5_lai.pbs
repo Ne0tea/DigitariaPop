@@ -1,0 +1,28 @@
+#!/bin/bash
+###define PBS arguments
+
+#PBS -N LAI_ass
+#PBS -l nodes=1:ppn=20,walltime=30:00:00:00
+#PBS -q low
+#PBS -j oe
+#PBS -o log_LAI_assessment
+set +u -e
+###job starting reminder
+
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+###job dir
+cd $PBS_O_WORKDIR
+source activate /public/home/huangyj/anaconda3/envs/LAI
+prefix=Dsan_chr.np2
+genome="/public4/home/huangyj/Digitaria/assembly/03polish/Dsan_chr.np2.fa"
+###job command
+
+LTR_FINDER_parallel -seq $genome -threads 20 -harvest_out -size 10000000 -time 3000 -w 2 -C -D 15000 -d 1000 -L 7000 -l 100 -p 20 -M 0.85
+LTR_retriever -threads 20 -genome $genome -inharvest ${genome##*/}.finder.combine.scn
+
+conda deactivate
+###job finished reminder
+echo "Finish at"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+

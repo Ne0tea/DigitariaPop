@@ -1,0 +1,48 @@
+#!/bin/bash
+###define PBS arguments
+
+#PBS -N BQSR_result_plot
+#PBS -l nodes=1:ppn=10,walltime=30:00:00:00,mem=60g
+#PBS -q fat
+#PBS -j oe
+#PBS -o log_BQSR
+
+###job starting reminder
+echo $USER
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+set -e 
+set -u
+
+###job dir
+cd $PBS_O_WORKDIR
+###variable
+software="/public/home/wudy/software/gatk3-7/GenomeAnalysisTK.jar"
+gatk_java='/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.262.b10-1.el7.x86_64/jre/bin/java'
+build_dict_script="/public/home/huangyj/anaconda3/envs/population/share/picard-2.18.23-0/picard.jar"
+BQSR_script="/public4/home/huangyj/Digitaria/population/BQSR.R"
+threads=30
+ref_genome='/public4/home/huangyj/Digitaria/assembly/04gap_filler/Dsan_chr.V2.fa'
+###job command
+source activate /public/home/huangyj/anaconda3/envs/population 
+#---------------------------------input set----------------------------------
+#give $bam
+for bam in `cat $file`
+do
+tmp=${bam##*/}
+sample=${tmp%%_*}
+mkdir -p /public4/home/huangyj/Digitaria/population/Bam_recal/${sample}_tmpfile
+gatk_tmpfile=/public4/home/huangyj/Digitaria/population/Bam_recal/${sample}_tmpfile
+
+if [ ! -s ${bam%.*}.recal_data.2round.grp ] ; then
+$gatk_java -Xmx80g -Djava.io.tmpdir=$gatk_tmpfile -jar $software -T BaseRecalibrator -R $ref_genome -I ${bam%.*}.recal.bam -o ${bam%.*}.recal_data.2round.grp -knownSites ${bam%.*}.ordered.vcf
+fi
+$gatk_java -Xmx80g -Djava.io.tmpdir=$gatk_tmpfile -jar $software -T AnalyzeCovariates -R $ref_genome -before ${bam%.*}.recal_data.grp -after ${bam%.*}.recal_data.2round.grp -csv ${bam%.*}.recal_data.csv -plots ${bam%.*}.recal_data.pdf -l DEBUG
+
+~/anaconda3/envs/draw_env/bin/Rscript $BQSR_script ${bam%.*}.recal_data.csv ${bam%.*}.recal_data.grp ${bam%.*}.recal_data.pdf
+done
+conda deactivate
+###job finished reminder
+echo "Finish at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+

@@ -1,0 +1,28 @@
+###define PBS arguments
+
+#PBS -N EasySpeciesTree
+#PBS -l nodes=1:ppn=30,walltime=30:00:00:00
+#PBS -q fat
+#PBS -j oe
+#PBS -o log_EasySpeciesTree
+
+###job starting reminder
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+###job dir
+cd $PBS_O_WORKDIR
+
+
+###variable
+#fasta=
+###job command
+source activate /public/home/huangyj/anaconda3/envs/compare_g
+if [ ! -s all-pep.fas ] ; then
+for i in `ls /public4/home/huangyj/Digitaria/genomic_analysis/phylogeny/orthologue/ref/*fasta`;do cat $i | sed 's/ .*$//g' >> all-pep.fas;done
+fi
+~/software/EasySpeciesTree-master/easy_fa2beast.py -in1 ${sp_id} -in2 $single -in3 ${orthogroups} -in4 all-pep.fas -nb 100 -t 30
+#iqtree -s ./SingleGene_MSA/merged_allSingleGenes.nexus -m MF -nt AUTO 
+iqtree -s ./SingleGene_MSA/merged_allSingleGenes.nexus -m JTT+G4 -nt AUTO -B 1500 
+conda deactivate
+echo "Finished at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'

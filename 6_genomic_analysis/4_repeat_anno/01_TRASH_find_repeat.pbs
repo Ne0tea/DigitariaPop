@@ -1,0 +1,31 @@
+###define PBS arguments
+#PBS -N TRASH
+#PBS -l nodes=1:ppn=4,walltime=2400:00:00,mem=200g
+#PBS -q fat
+#PBS -j oe
+#PBS -o log_TRASH
+
+###job starting reminder
+echo "Starting job at:"
+date
+hostname
+
+###job dir
+cd $PBS_O_WORKDIR
+#all path need to be absolute path
+###
+export PATH="/public/software/lib/miniconda3/bin:$PATH"
+source activate /public/home/huangyj/anaconda3/envs/trash
+
+mkdir -p Dsan_denovo
+sh /public/home/huangyj/software/TRASH-main/TRASH_run.sh ${fa} --simpleplot --frep 2 --par 4 --o /public4/home/huangyj/Digitaria/genomic_analysis/centromere/Dsan_denovo
+
+conda deactivate
+#for i in `list1.txt`
+#do
+#	sh /public2/labmember/xielj/T2Trice_centromere/software/TRASH/TRASH_run.sh ${i}.fasta --seqt public2/labmember/xielj/T2Trice_centromere/01_TRASH/batch1/${i}_HOR/TRASH_${i}_155bp_consensus.txt --simpleplot --horclass CEN155  --par 5 --o public2/labmember/xielj/T2Trice_centromere/01_TRASH/batch1/${i}_HOR/
+#done
+
+###job finished reminder
+echo "Finished at:"
+date

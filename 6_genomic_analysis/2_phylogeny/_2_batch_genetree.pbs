@@ -1,0 +1,25 @@
+#!/bin/bash
+###define PBS arguments
+#PBS -N mcm_predata
+#PBS -l nodes=1:ppn=4,walltime=30:00:00:00,mem=20g
+#PBS -q low
+#PBS -j oe
+#PBS -o log_mcm_predata
+
+###job starting reminder
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+###job dir
+cd $PBS_O_WORKDIR
+
+###job command
+source activate /public/home/huangyj/anaconda3/envs/paml
+
+for i in `cat ${file}`
+do
+muscle -quiet -in CDSfile/${i}.cds -physout CDSfile/${i}.phy
+done
+
+conda deactivate
+echo "Finished at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'

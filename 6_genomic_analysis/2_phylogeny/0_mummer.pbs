@@ -1,0 +1,33 @@
+#!/bin/bash
+###define PBS arguments
+
+#PBS -N mummer_asm
+#PBS -l nodes=1:ppn=1,walltime=30:00:00:00
+#PBS -q low
+#PBS -j oe
+#PBS -o log_mummer_asm
+set +u -e
+###job starting reminder
+
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+###job dir
+cd $PBS_O_WORKDIR
+source activate /public/home/huangyj/anaconda3/envs/mummer
+###variable
+#ref="/public4/home/huangyj/Digitaria/related_ref/Dexil_2020_chr.fasta"
+#query="/public4/home/huangyj/Digitaria/assembly/01hifiasm/Dsan_hifiasm.bp.p_ctg.fa"
+query="/public4/home/huangyj/Digitaria/related_ref/Dsan_chr.V2.fa"
+###job command
+nucmer --mum -c 100 -l 50 -g 1000 $ref $query
+delta-filter -1 -q -r -i 89 -l 50 out.delta > out_single.filter
+delta-filter -i 90 -l 1000 out.delta > out_1000.filter
+show-coords -THrd out_1000.filter > out_1000.filter.coords
+delta-filter -i 90 -l 10000 out.delta > filter_10000.delta
+delta-filter -i 90 -l 20000 out.delta > filter_20000.delta
+mummerplot --png -p dot_10000_mummer filter_10000.delta -R $ref -Q $query --large
+mummerplot --png -p dot_20000_mummer filter_20000.delta -R $ref -Q $query --large
+conda deactivate
+###job finished reminder
+echo "Finish at"
+date -d +20minute +'%Y-%m-%d %H:%M:%S' 

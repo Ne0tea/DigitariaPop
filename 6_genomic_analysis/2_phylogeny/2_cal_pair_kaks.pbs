@@ -1,0 +1,79 @@
+#!/bin/bash
+###define PBS arguments
+
+#PBS -N Cal_pair_kaks
+#PBS -l nodes=1:ppn=10,walltime=30:00:00:00
+#PBS -q low
+#PBS -j oe
+#PBS -o log_cal_pair_kaks
+
+###job starting reminder
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+###job dir
+cd $PBS_O_WORKDIR
+
+###job command
+#abs
+#genome="/public/home/huangyj/HLW/HLW_ref/HLW_seq16/HLW_seq16.fa"
+#gff="/public/home/huangyj/HLW/ortho/4dtv/ordered.HLW_seq16.gff3"
+#prefix="HLW_4dtv"
+blast_pre=${prefix}_prot
+thread=10
+
+#---------------------------------------------------------------------------------------
+mkdir -p ${prefix#_*}
+cd ${prefix#_*}
+source activate /public/home/huangyj/anaconda3/envs/tophat
+gffread $gff1 -g $genome1 -x ${prefix}_sp1_cds.fa -y ${prefix}_sp1_prot.fa 
+gffread $gff2 -g $genome2 -x ${prefix}_sp2_cds.fa -y ${prefix}_sp2_prot.fa
+conda deactivate
+stop_codon_replace.py ${prefix}_sp1_prot.fa
+stop_codon_replace.py ${prefix}_sp2_prot.fa
+stop_codon_replace.py ${prefix}_sp1_cds.fa
+stop_codon_replace.py ${prefix}_sp2_cds.fa
+#---------------------------------------------------------------------------------------
+#ln -s -f ${cds} ${prefix}_4dtv_cds.fa
+#ln -s -f ${prot} ${prefix}_4dtv_prot.fa
+source activate /public/home/huangyj/anaconda3/envs/compare_g
+ax2_scri="/public/home/huangyj/HLW/ortho/4dtv/axt2one-line.py"
+cal4d_scri="/public/home/huangyj/HLW/ortho/4dtv/calculate_4DTV_correction.pl"
+#---------------------------------------------------------------------------------------
+makeblastdb -in ${prefix}_sp1_prot.fa -dbtype prot -parse_seqids -out ${prefix}_sp1
+#diamond makedb -in ${r_prot} -d ${r_prefix}
+blastp -query ${prefix}_sp2_prot.fa -out ${blast_pre}.blast -db ${prefix}_sp1 -outfmt 6 -evalue 1e-10 -num_threads 8 -qcov_hsp_perc 50.0 -num_alignments 5
+#自行准备gff文件,需要两个gff文件合并
+grep '\smRNA\s' $gff1 | awk '{print $1"\t"$4"\t"$5"\t"$9}' | awk -F 'ID=' '{print $1$2}' | awk -F 'Parent=' '{print $1}' | awk -F 'Name=' '{print $1}' | awk '{print $1"\t"$4"\t"$2"\t"$3}' |sed 's/;//g' > ${blast_pre}.gff
+grep '\smRNA\s' $gff2 | awk '{print $1"\t"$4"\t"$5"\t"$9}' | awk -F 'ID=' '{print $1$2}' | awk -F 'Parent=' '{print $1}' | awk -F 'Name=' '{print $1}' | awk '{print $1"\t"$4"\t"$2"\t"$3}' |sed 's/;//g' >> ${blast_pre}.gff
+MCScanX $blast_pre -g -3 -e 1e-10
+#---------------------------------------------------------------------------------------
+cat ${blast_pre}.collinearity | sed 's/ //g'| grep -v "#" | awk '{print $2"\t"$3}' > ${blast_pre}.homolog
+echo $thread > proc
+cat ${prefix}_sp1_cds.fa ${prefix}_sp2_cds.fa > ${prefix}_cds.fa
+cat ${prefix}_sp1_prot.fa ${prefix}_sp2_prot.fa > ${prefix}_prot.fa
+ParaAT.pl -h ${blast_pre}.homolog -n ${prefix}_cds.fa -a ${prefix}_prot.fa -m clustalw2 -p proc -f axt -o $prefix 
+#---------------------------------------------------------------------------------------
+cd $prefix
+#cal 4dtv
+for i in `ls *.axt`;do python $ax2_scri $i ${i}.one-line;done
+ls *.axt.one-line|while read id;do perl $cal4d_scri $id > ${id%%one-line}4dtv;done
+for i in `ls *.4dtv`;do awk 'NR>1{print $1"\t"$3}' $i >> ${prefix}_all-4dtv.txt;done
+sort ${prefix}_all-4dtv.txt|uniq > ${prefix}_all-4dtv.results
+#cal ks
+for i in `ls *.axt`;do KaKs -i $i -o ${i}.kaks -m NG;done
+for i in `ls *.kaks`;do awk 'NR>1{print $1"\t"$4}' $i >> ${prefix}_all-kaks.txt;done
+sort ${prefix}_all-kaks.txt | uniq > ${prefix}_all-kaks.results
+
+#join ks and 4dtv
+join -1 1 -2 1 ${prefix}_all-kaks.results ${prefix}_all-4dtv.results > ${prefix}_all-results.txt
+sed -i '1i\Seq\tKs\tdtv_corrected' ${prefix}_all-results.txt
+#cat all-results.txt | awk '{print "Atat""\t"$2"\t"$3}' > Atat.txt
+cd ../
+#---------------------------------------------------------------------------------------
+cd ../
+conda deactivate
+#qsub -v genome=/public/home/huangyj/HLW/related_ref/assembly/Atatarinowii.fa,gff=/public/home/huangyj/HLW/related_ref/gff/At.gff3,prefix=At_4dtv 0_cal_4dtv.pbs
+#直接qsub需要使用绝对路径
+#qsub -o log.HLWA_HLWB -v genome1=/public/home/huangyj/HLW/HLW_ref/HLW_subgenome/HLW_subA.fa,gff1=/public/home/huangyj/HLW/HLW_ref/HLW_subgenome/HLW_subA.gff3,prefix=HLWA_HLWB,genome2=/public/home/huangyj/HLW/HLW_ref/HLW_subgenome/HLW_subB.fa,gff2=/public/home/huangyj/HLW/HLW_ref/HLW_subgenome/HLW_subB.gff3 ../../4dtv/1_cal_ortho_4dtv.pbs
+echo "Finished at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'

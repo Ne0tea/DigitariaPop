@@ -1,0 +1,32 @@
+#!/bin/bash
+###define PBS arguments
+
+#PBS -N CRAQ
+#PBS -l nodes=1:ppn=10,walltime=30:00:00:00
+#PBS -q pang
+#PBS -j oe
+#PBS -o log_CRAQ
+set +u -e
+###job starting reminder
+
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+###job dir
+cd $PBS_O_WORKDIR
+
+###job starting reminder
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+###job dir
+asm='/public4/home/huangyj/Digitaria/genomic_analysis/assessment/Dsan_chr.np2.27.fasta'
+sms_bam='/public4/home/huangyj/Digitaria/Dsan_ref_data/HiFi/Dsan_hifi.fq_np2.sorted.bam'
+ngs_bam='/public4/home/huangyj/Digitaria/Dsan_ref_data/ONT/Dsan_UL.fq_np2.sorted.bam'
+#bam_list=`cat HDR7_bam.list | paste -s -d ' '`
+
+source activate /public/home/huangyj/anaconda3/envs/r_p
+
+perl /public/home/huangyj/software/CRAQ-1.0.9/bin/craq  -t 10 -avgl 80 -avgs 60 -pl T -g $asm -sms $sms_bam -ngs $ngs_bam
+
+conda deactivate 
+echo "Finished at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'

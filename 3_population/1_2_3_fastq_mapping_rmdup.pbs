@@ -1,0 +1,79 @@
+###define PBS arguments
+#PBS -N fastp_map
+#PBS -l nodes=1:ppn=20,walltime=30:00:00:00,mem=60g
+#PBS -q low
+#PBS -j oe
+#PBS -o log_fastq_meryl
+
+###job starting reminder
+echo "Starting job at:"
+date
+hostname
+
+###job dir
+cd $PBS_O_WORKDIR
+
+###job command
+which conda
+#conda init
+source activate /public/home/huangyj/anaconda3/envs/population
+threads=20
+clean_fq_dir="/public4/home/huangyj/Digitaria/Dsan_Ngseq/rawdata4/CleanData"
+#clean_fq_dir="/public4/home/huangyj/Digitaria/Dsan_Ngseq/rawdata2/soapnuke/clean"
+#echo "DATA QC and FILTERING..."
+#cat batch_miss_1114 | while read id
+#do
+cd ${clean_fq_dir}/${pre}
+if [ ! -s $pre\_1.clean.fq.gz ] || [ ! -s $pre\_2.clean.fq.gz ] ; then
+echo $pre
+fastp -i $pre\_1.fq.gz -o $pre\_1.clean.fq.gz -I $pre\_2.fq.gz -O $pre\_2.clean.fq.gz -j $pre.json -h $pre.html -u 30 -q 20 -w $threads
+#done
+echo "QC Finished!"
+fi
+cd $PBS_O_WORKDIR
+
+fq1=${clean_fq_dir}/${pre}/${pre}_1.clean.fq.gz
+fq2=${clean_fq_dir}/${pre}/${pre}_2.clean.fq.gz
+temp=${fq1##*/}
+sp=${temp%%.*} 
+mkdir -p ./Bam
+if [ ! -e Dsan_chr.V2 ] ;then
+:
+#/public2/huangyj/software/bowtie2-2.5.2/bowtie2-build ${ref} ${sp}
+fi
+echo "Current mapping ${sp}"
+bowtie2 -p $threads -x /public4/home/huangyj/Digitaria/assembly/04gap_filler/Dsan_chr.V2 -1 ${fq1} -2 ${fq2} --rg-id ${sp} --rg "PL:ILLUMINA" --rg "SM:${sp}" -S ./Bam/${sp}.sam
+
+if [ ! -e ./Bam/${sp}.bam ]  ; then
+sambamba-1.0.1 view -f bam -h -t $threads -S -o ./Bam/${sp}.bam ./Bam/${sp}.sam
+fi
+if [ ! -e ./Bam/${sp}.sorted.bam ]  ; then
+sambamba-1.0.1 sort  -t $threads  -o ./Bam/${sp}.sorted.bam ./Bam/${sp}.bam
+fi
+
+if [ $? = 0 ]; then
+   rm ./Bam/${sp}.sam
+   rm ./Bam/${sp}.bam
+fi
+sambamba-1.0.1 flagstat -t $threads ./Bam/${sp}.sorted.bam > ./Bam/${sp}.flagstat
+
+if [ ! -s ${bam}.bai ] ; then
+sambamba-1.0.1 index -t $threads ./Bam/${sp}.sorted.bam
+fi
+
+mkdir -p /public4/home/huangyj/Digitaria/population/Bam_recal/${sp%_*}_tmpfile
+gatk_tmpfile=/public4/home/huangyj/Digitaria/population/Bam_recal/${sp%_*}_tmpfile
+
+if [ ! -s ${bam%.*}.rmdup.bam ] ; then
+sambamba-1.0.1 markdup --tmpdir $gatk_tmpfile -r -t $threads ./Bam/${sp}.sorted.bam ./Bam/${sp}.sorted.rmdup.bam
+sambamba-1.0.1 index -t $threads ./Bam/${sp}.sorted.rmdup.bam
+fi
+
+rm -rf $gatk_tmpfile
+
+echo "${sp} done"
+
+conda deactivate
+###job finished reminder
+echo "Finish at"
+date -d +20minute +'%Y-%m-%d %H:%M:%S' 

@@ -1,0 +1,85 @@
+###define PBS arguments
+
+#PBS -N Cal_Ks
+#PBS -l nodes=1:ppn=10,walltime=30:00:00:00
+#PBS -q low
+#PBS -j oe
+#PBS -o log_cal_Ks
+
+###job starting reminder
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+###job dir
+cd $PBS_O_WORKDIR
+
+###job command
+#abs
+#genome="/public/home/huangyj/HLW/HLW_ref/HLW_seq16/HLW_seq16.fa"
+#gff="/public/home/huangyj/HLW/ortho/4dtv/ordered.HLW_seq16.gff3"
+#prefix="HLW_4dtv"
+blast_pre=${prefix}_prot
+thread=10
+
+#---------------------------------------------------------------------------------------
+mkdir -p ${prefix}
+cd ${prefix}
+if [ ! -s ${prefix}_4dtv_cds.fa ] || [ ! -s ${prefix}_4dtv_prot.fa ] ; then
+source activate /public/home/huangyj/anaconda3/envs/tophat
+gffread $gff -g $genome -x temp_${prefix}_cds.fa -y temp_${prefix}_prot.fa 
+cut -f1 -d " " temp_${prefix}_cds.fa > ${prefix}_4dtv_cds.fa
+cut -f1 -d " " temp_${prefix}_prot.fa > ${prefix}_4dtv_prot.fa
+sed -i 's/\.$//g' ${prefix}_4dtv_prot.fa
+conda deactivate
+fi
+#---------------------------------------------------------------------------------------
+#ln -s -f ${cds} ${prefix}_4dtv_cds.fa
+#ln -s -f ${prot} ${prefix}_4dtv_prot.fa
+source activate /public/home/huangyj/anaconda3/envs/compare_g
+ax2_scri="/public/home/huangyj/HLW/ortho/4dtv/axt2one-line.py"
+cal4d_scri="/public/home/huangyj/HLW/ortho/4dtv/calculate_4DTV_correction.pl"
+#---------------------------------------------------------------------------------------
+if [ ! -s ${blast_pre}.blast ] ; then
+makeblastdb -in ${prefix}_4dtv_prot.fa -dbtype prot -parse_seqids -out $blast_pre
+blastp -query ${prefix}_4dtv_prot.fa -out ${blast_pre}.blast -db $blast_pre -outfmt 6 -evalue 1e-10 -num_threads 8 -qcov_hsp_perc 50.0 -num_alignments 5
+fi
+#自行准备gff文件
+grep '\smRNA\s' $gff | awk '{print $1"\t"$4"\t"$5"\t"$9}' | awk -F 'ID=' '{print $1$2}' | awk -F 'Parent=' '{print $1}' | awk -F 'Name=' '{print $1}' | awk '{print $1"\t"$4"\t"$2"\t"$3}' |sed 's/;//g' > ${blast_pre}.gff
+MCScanX $blast_pre -g -3 -e 1e-10
+#---------------------------------------------------------------------------------------
+cat ${blast_pre}.collinearity | sed 's/ //g'| grep -v "#" | awk '{print $2"\t"$3}' > ${blast_pre}.homolog
+echo $thread > proc
+if [ -d $prefix ] ; then
+rm -rf $prefix
+fi
+ParaAT.pl -h ${blast_pre}.homolog -n ${prefix}_4dtv_cds.fa -a ${prefix}_4dtv_prot.fa -m clustalw2 -p proc -f axt -o $prefix 
+#---------------------------------------------------------------------------------------
+cd $prefix
+#cal 4dtv
+for i in `ls *.axt`;do python $ax2_scri $i ${i}.one-line;done
+ls *.axt.one-line | while read id;do 
+perl $cal4d_scri $id > ${id%%one-line}4dtv
+done
+for i in `ls *.4dtv`;do 
+awk 'NR>1{print $1"\t"$3}' $i >> ${prefix}_all_4dtv.txt
+done
+sort ${prefix}_all_4dtv.txt | uniq > ${prefix}_all_4dtv.results
+#cal ks
+for i in `ls *.axt`;do 
+KaKs -i $i -o ${i}.kaks -m YN
+done
+for i in `ls *.kaks`;do awk 'NR>1{print $1"\t"$4}' $i >>${prefix}_all_kaks.txt;done
+sort ${prefix}_all_kaks.txt|uniq >${prefix}_all_kaks.results
+
+#join ks and 4dtv
+join -1 1 -2 1 ${prefix}_all_kaks.results ${prefix}_all_4dtv.results > ${prefix}_all_results.txt
+sed -i '1i\Seq\tKs\tdtv_corrected' ${prefix}_all_results.txt
+#cat ${prefix}_all_results.txt | awk '{print "Atat""\t"$2"\t"$3}' > Atat.txt
+cd ../
+#---------------------------------------------------------------------------------------
+cd ../
+conda deactivate
+#qsub -v genome=/public/home/huangyj/HLW/related_ref/assembly/Atatarinowii.fa,gff=/public/home/huangyj/HLW/related_ref/gff/At.gff3,prefix=At_4dtv 0_cal_4dtv.pbs
+#直接qsub需要使用绝对路径
+#qsub -o log.HLW -v genome=/public/home/huangyj/HLW/HLW_ref/HLW_seq16/HLW_seq16.fa,gff=/public/home/huangyj/HLW/HLW_ref/HLW_seq16/HLW_seq16.gff3,prefix=HLW_4dtv 0_cal_4dtv.pbs
+echo "Finished at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'

@@ -1,0 +1,53 @@
+#!/bin/bash
+###define PBS arguments
+
+#PBS -N Rmdup
+#PBS -l nodes=1:ppn=30,walltime=30:00:00:00,mem=100g
+#PBS -q low
+#PBS -j oe
+#PBS -o log_rmdup
+
+###job starting reminder
+echo $USER
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+set -e 
+set -u
+
+###job dir
+cd $PBS_O_WORKDIR
+###variable
+software="/public/home/wudy/software/gatk3-7/GenomeAnalysisTK.jar"
+gatk_java='/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.262.b10-1.el7.x86_64/jre/bin/java'
+build_dict_script="/public/home/huangyj/anaconda3/envs/population/share/picard-2.18.23-0/picard.jar"
+threads=30
+ref_genome='/public4/home/huangyj/Digitaria/assembly/04gap_filler/Dsan_chr.V2.fa'
+###job command
+source activate /public/home/huangyj/anaconda3/envs/population 
+#---------------------------------input set----------------------------------
+#give $bam
+for bam in `cat $file`
+do
+tmp=${bam##*/}
+sample=${tmp%%_*}
+echo $sample
+mkdir -p /public4/home/huangyj/Digitaria/population/Bam_recal/${sample}_tmpfile
+gatk_tmpfile=/public4/home/huangyj/Digitaria/population/Bam_recal/${sample}_tmpfile
+
+if [ ! -s ${bam}.bai ] ; then
+sambamba-1.0.1 index -t $threads ${bam}
+fi
+
+if [ ! -s ${bam%.*}.rmdup.bam ] ; then
+sambamba-1.0.1 markdup --tmpdir $gatk_tmpfile -t $threads $bam ${bam%.*}.rmdup.bam
+sambamba-1.0.1 index -t $threads ${bam%.*}.rmdup.bam
+fi
+
+rm -rf $gatk_tmpfile
+done
+conda deactivate
+
+###job finished reminder
+echo "Finish at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+

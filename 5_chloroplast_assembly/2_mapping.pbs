@@ -1,0 +1,61 @@
+#!/bin/bash
+###define PBS arguments
+#PBS -N Chloro_mapping
+#PBS -l nodes=1:ppn=10,walltime=30:00:00:00,mem=20g
+#PBS -q low
+#PBS -j oe
+#PBS -o log_Chloro_mapping
+
+###job starting reminder
+echo "Starting job at:"
+date
+hostname
+
+###job dir
+cd $PBS_O_WORKDIR
+
+###job command
+source activate /public/home/huangyj/anaconda3/envs/population
+threads=10
+cat $file | while read id
+do
+arr=($id)
+fq1=${arr[0]}
+fq2=${arr[1]}
+temp=${fq1##*/}
+sp=${temp%%.*} 
+mkdir -p ./Bam
+if [ -s ./Bam/${sp}.sorted.bam ] ; then
+temp=${fq2##*/}
+sp=${temp%%.*}
+fi
+
+if [ ! -e /public4/home/huangyj/Digitaria/assembly/04gap_filler/Dsan_chr.V2.1.bt2 ] ;then
+:
+#/public2/huangyj/software/bowtie2-2.5.2/bowtie2-build ${ref} ${sp}
+fi
+echo "Current mapping ${sp}"
+
+if [ ! -s ./Bam/${sp}.sam ] ; then
+bowtie2 -p $threads -x /public4/home/huangyj/Digitaria/chloro_assembly/YJ2023/YJ2023_Chloro_p3 -1 ${fq1} -2 ${fq2} --rg-id ${sp} --rg "PL:ILLUMINA" --rg "SM:${sp}" -S ./Bam/${sp}.sam
+fi
+
+if [ ! -s ./Bam/${sp}.bam ]  ; then
+sambamba-1.0.1 view -f bam -h -t $threads -S -o ./Bam/${sp}.bam ./Bam/${sp}.sam
+fi
+if [ ! -s ./Bam/${sp}.sorted.bam ]  ; then
+sambamba-1.0.1 sort  -t $threads  -o ./Bam/${sp}.sorted.bam ./Bam/${sp}.bam
+fi
+
+if [ $? -eq 0 ]; then
+   rm ./Bam/${sp}.sam
+   rm ./Bam/${sp}.bam
+fi
+sambamba-1.0.1 flagstat -t $threads ./Bam/${sp}.sorted.bam > ./Bam/${sp}.flagstat
+
+echo "${sp} done"
+done
+conda deactivate
+###job finished reminder
+echo "Finish at"
+date -d +20minute +'%Y-%m-%d %H:%M:%S' 

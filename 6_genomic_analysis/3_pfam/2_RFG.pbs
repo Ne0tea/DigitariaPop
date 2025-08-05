@@ -1,0 +1,27 @@
+#!/bin/bash
+###define PBS arguments
+#PBS -N RFG_anno
+#PBS -l nodes=1:ppn=20,walltime=2400:00:00
+#PBS -q low
+#PBS -j oe
+#PBS -o log_RFG_annotation
+
+###job starting reminder
+echo "Starting job at:"
+date
+hostname
+
+###job dir
+cd $PBS_O_WORKDIR
+
+source activate /public/home/huangyj/anaconda3/envs/r_p
+###job command
+#fa
+#prefix="Dsan_V3"
+database='/public4/home/huangyj/Digitaria/related_ref/poaceae_genome/Osat_prot_for_funcanno'
+
+blastp -db $database -query $fa -out ${prefix}_RFG -evalue 1e-10 -outfmt 6 -num_threads 20
+
+###job finished reminder
+echo "Finished at:"
+date
