@@ -1,0 +1,35 @@
+#!/bin/bash
+###define PBS arguments
+#PBS -N Dxy
+#PBS -l nodes=1:ppn=10,walltime=30:00:00:00
+#PBS -q low
+#PBS -j oe
+#PBS -o log_Dxy
+
+###job starting reminder
+echo $USER
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+
+###job dir
+cd $PBS_O_WORKDIR
+
+source activate /public/home/huangyj/anaconda3/envs/population
+###variable
+#gzvcf
+#keep_pop
+#prefix
+###job command
+genomic_genral_dir="/public/home/huangyj/software/genomics_general-master"
+
+#pixy --stats pi fst dxy --vcf $gzvcf --populations $keep_pop --window_size 20000 --n_cores 20 --output_prefix $prefix --output_folder ${prefix}_2k_pixy
+#pixy --stats pi fst dxy --vcf $gzvcf --populations $keep_pop --window_size 50000 --n_cores 20 --output_prefix $prefix --output_folder ${prefix}_5k_pixy
+#pixy --stats pi fst dxy --vcf $gzvcf --populations $keep_pop --window_size 100000 --n_cores 20 --output_prefix $prefix --output_folder ${prefix}_10k_pixy
+~/software/genomics_general-master/VCF_processing/parseVCF.py -i $gzvcf | bgzip > Dsan_all.merge.gatk3.fd.geno.gz
+${genomic_genral_dir}/popgenWindows.py -T 10 -g Dsan_all.merge.gatk3.fd.geno.gz -o Dsan_all.merge.gatk3.fd.perinal.50k.Fst.Dxy.pi.csv -f phased -w 50000 -m 1000 -s 50000 -p Y2023 -p Y20135 --popsFile $keep_pop
+${genomic_genral_dir}/popgenWindows.py -T 10 -g Dsan_all.merge.gatk3.fd.geno.gz -o Dsan_all.merge.gatk3.fd.perinal.100k.Fst.Dxy.pi.csv -f phased -w 100000 -m 1000 -s 100000 -p Y2023 -p Y20135 --popsFile $keep_pop
+
+conda deactivate
+###job finished reminder
+echo "Finish at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'

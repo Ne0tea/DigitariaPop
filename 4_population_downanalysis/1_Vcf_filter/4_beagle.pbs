@@ -1,0 +1,35 @@
+#!/bin/bash
+###define PBS arguments
+#PBS -N beagle
+#PBS -l nodes=1:ppn=20,walltime=2400:00:00,mem=1000g
+#PBS -q fat
+#PBS -j oe
+#PBS -o log_beagle
+
+set -u
+###job starting reminder
+echo "Starting job at:"
+date
+hostname
+
+###job dir
+cd $PBS_O_WORKDIR
+
+###job command
+#gzvcf
+ref="/public4/home/huangyj/Digitaria/assembly/04gap_filler/Dsan_chr.V2.fa"
+thread=20
+
+#for gzvcf in Dsan_all.merge.gatk3.vcf.filtered.gz Dsan_all.merge.gatk3.vcf.fd.maf1mas7.annotate.gz Dsan_all.merge.gatk3.vcf.fd.maf1mas7.annotate.gz
+#do
+/public/home/Grace_shen/soft/anaconda3/bin/bcftools norm -f $ref --multiallelics -both $gzvcf -Ov -o ${gzvcf/.gz/_norm.vcf}
+java -Xmx1000g -jar /public3/labmember/xielj/01_RedRice/00_software/beagle/beagle.18May20.d20.jar gt=${gzvcf/.gz/_norm.vcf} out=${gzvcf/.gz/_norm_beagle.vcf} nthreads=${thread}
+
+#zip & index
+bgzip ${gzvcf/.gz/_norm_beagle.vcf} -@ $thread
+tabix ${gzvcf/.gz/_norm_beagle.vcf}.gz
+
+#done
+###job finished reminder
+echo "Finished at:"
+date

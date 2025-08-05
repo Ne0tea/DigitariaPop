@@ -1,0 +1,60 @@
+#!/bin/bash
+###define PBS arguments
+
+#PBS -N fasttree
+#PBS -l nodes=1:ppn=20,walltime=30:00:00:00
+#PBS -q fat
+#PBS -j oe
+#PBS -o log_fasttree
+
+###job starting reminder
+echo "Starting job at:"
+date
+hostname
+
+###job dir
+cd $PBS_O_WORKDIR
+
+source activate /public/home/huangyj/anaconda3/envs/compare_g
+###job command
+#gzvcf="/public4/home/huangyj/Digitaria/population_downanalysis/vcf_filt/all_gatk3/Dsan_all.merge.gatk3.vcf.filtered.gz"
+#pre=''
+
+############Filt10dderation 1 ################
+#perl 3_system_GATKcalling_filtering.pl ${chr}.raw.vcf snp ; echo $chr "finished"
+#vcftools --gzvcf all_WGS_5229.vcf.gz --minQ 30 --recode --recode-INFO-all --out all_WGS_minQ30
+#echo "QUAL<30 and removed"
+
+
+###########Filteration 2 ################
+#vcftools --gzvcf all_WGS_5229.vcf.gz --missing-indv --stdout > all_WGS.imiss
+#awk '{if($5 > 0.2) print $1}' all_WGS.imiss | grep -v "INDV" > remove_id_list_miss_sample20.txt
+#vcftools --gzvcf all_WGS_5229.vcf.gz --remove remove_id_list_miss_sample20.txt --stdout --recode --recode-INFO-all | bgzip >  all_WGS_sample20.vcf.gz
+#echo "missing-indv has removed"
+
+##########Filteration 3 #################
+#vcftools  --gzvcf /public/home/xielj/HLW/00_data/HLW_filter_SNP.vcf.gz --max-missing 0.8 --maf 0.01 --recode --recode-INFO-all --out HLW_filter
+#echo "mis8maf1 finished"
+
+################# SNP NUMBER #########################
+#less HLW_filter.recode.vcf | grep -v "#" | wc -l >> SNP.stat
+
+mkdir -p ${pre} && cd ${pre}
+##########vcf2hapmap####################
+if [ ! -s unzip_tmp.hapmap.fa ] ; then
+gunzip -c $gzvcf > unzip_tmp.vcf
+perl /public/home/huangyj/HLW/polymorphism/5_vcf_cal/tree/4_final_convert_imputedvcf2hapmap.pl unzip_tmp.vcf
+echo "vcf2hapmap finished"
+
+#########hapmap2seq######################
+perl /public/home/huangyj/HLW/polymorphism/5_vcf_cal/tree/5_haplotype2seq.pl unzip_tmp.hapmap 
+echo "hapmap2seq finished"
+fi
+
+#########FastTreeMP#####################
+FastTreeMP -nt unzip_tmp.hapmap.fa > Final_out.tree
+
+conda deactivate
+###job finished reminder
+echo "Finished at:"
+date

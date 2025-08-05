@@ -1,0 +1,70 @@
+#!/bin/bash
+###define PBS arguments
+
+#PBS -N VCF_filter
+#PBS -l nodes=1:ppn=20,walltime=30:00:00:00,mem=180g
+#PBS -q low
+#PBS -j oe
+#PBS -o log_vcf_filted
+
+###job starting reminder
+echo $USER
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+set +u -e
+
+###job dir
+cd $PBS_O_WORKDIR
+###variable
+gatk_java='/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.262.b10-1.el7.x86_64/jre/bin/java'
+build_dict_script="/public/home/huangyj/anaconda3/envs/population/share/picard-2.18.23-0/picard.jar"
+gatk4='/public/home/huangyj/software/gatk-4.4.0.0/gatk'
+snpeff_jar='/public/home/huangyj/software/snpEff/snpEff.jar'
+threads=4
+ref_genome='/public4/home/huangyj/Digitaria/assembly/04gap_filler/Dsan_chr.V2.fa'
+###job command
+source activate /public/home/huangyj/anaconda3/envs/population 
+#---------------------------------input set----------------------------------
+merged_vcf='/public4/home/huangyj/Digitaria/population_downanalysis/vcf_filt/Dsan_all.merge.vcf.gz'
+file_name=`basename $merged_vcf`
+#---------------------------------command------------------------------------
+mkdir -p /public4/home/huangyj/Digitaria/population_downanalysis/vcf_filt/SNP_filter_tempfile
+
+if [ ! -e ${ref_genome}.fai ] ;then
+samtools faidx ${ref_genome}
+fi
+
+if [ ! -s ${file_name/vcf/SNP} ] ; then
+$gatk4 SelectVariants -R $ref_genome -V $merged_vcf -select-type SNP -O ${file_name/vcf/SNP}
+fi
+if [ ! -s ${file_name/vcf/INDEL} ] ; then
+$gatk4 SelectVariants -R $ref_genome -V $merged_vcf -select-type INDEL -O ${file_name/vcf/INDEL}
+fi
+
+#VCF filtering
+$gatk4 VariantFiltration -R $ref_genome -V ${file_name/vcf/SNP} -O ${file_name/vcf/SNP.fd} -filter-name "QD2" -filter "QD < 2.0" -filter-name "DP10" -filter "DP < 10" -filter-name "MQ30" -filter "MQ < 30.0"
+#-filter-name "FS60" -filter "FS > 60.0" \
+#-filter-name "SOR4" -filter "SOR > 4.0" \
+#-filter-name "MQRankSum-12.5" -filter "MQRankSum < -12.5" \
+#-filter-name "ReadPosRankSum-8" -filter "ReadPosRankSum < -8.0"
+$gatk4 VariantFiltration -R $ref_genome -V ${file_name/vcf/INDEL} -O ${file_name/vcf/INDEL.fd} -filter-name "QD2" -filter "QD < 2.0" -filter-name "DP3" -filter "DP < 3" -filter-name "MQ20" -filter "MQ < 20.0" -filter-name "FS200" -filter "FS > 200.0" -filter-name "ReadPosRankSum-20" -filter "ReadPosRankSum < -20.0"
+#-filter-name "SOR_filter" -filter "SOR > 10.0" \
+
+$gatk4 SelectVariants \
+        --exclude-filtered \
+        -V ${file_name/vcf/SNP.fd} \
+        -O ${file_name/vcf/SNP.fded}
+$gatk4 SelectVariants \
+        --exclude-filtered \
+        -V ${file_name/vcf/INDEL.fd} \
+        -O ${file_name/vcf/INDEL.fded}
+
+java -jar $snpeff_jar build -c /public/home/huangyj/software/snpEff/snpEff.config -gff3 -v YJ2023 
+java -jar $snpeff_jar eff -c /public/home/huangyj/software/snpEff/snpEff.config YJ2023 ${file_name/vcf/SNP.fded} > ${file_name%%.*}_fded_SNP.eff.vcf -csvStats ${file_name%%.*}_fded_SNP_positive.csv -stats ${file_name%%.*}_fded_SNP_positive.html
+java -jar $snpeff_jar eff -c /public/home/huangyj/software/snpEff/snpEff.config YJ2023 ${file_name/vcf/INDEL.fded} > ${file_name%%.*}_fded_INDEL.eff.vcf -csvStats ${file_name%%.*}_fded_INDEL_positive.csv -stats ${file_name%%.*}_fded_INDEL_positive.html
+
+conda deactivate
+###job finished reminder
+echo "Finish at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+

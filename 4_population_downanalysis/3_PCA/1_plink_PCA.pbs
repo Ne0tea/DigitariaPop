@@ -1,0 +1,53 @@
+#!/bin/bash
+###define PBS arguments
+
+#PBS -N Plink-PCA
+#PBS -l nodes=1:ppn=10,walltime=30:00:00:00,mem=180g
+#PBS -q low
+#PBS -j oe
+#PBS -o log_plink-pca
+set +u -e
+###job starting reminder
+echo "Starting job at:"
+date
+hostname
+
+###job dir
+cd $PBS_O_WORKDIR
+
+###job command
+#gzvcf="/public4/home/huangyj/Digitaria/population_downanalysis/vcf_filt/all_gatk3/Dsan_all.merge.gatk3.vcf.filtered.gz"
+#pre='GATK3'
+Chr_list_file='/public4/home/huangyj/Digitaria/population_downanalysis/Dsan_all_chr.id'
+sample_list_file='/public4/home/huangyj/Digitaria/population_downanalysis/pca/Clutered_sample_C5_E.list'
+thread=20
+
+mkdir -p $pre && cd ${pre}
+source activate /public/home/huangyj/anaconda3/envs/python2pop
+
+#/public/home/Grace_shen/soft/anaconda3/bin/bcftools view $gzvcf --threads $thread -S ${sample_list_file} -Oz -o ${gzvcf%.*}.540.gz
+#Plnik keep file should be in format like "1\tID" 
+############    GET .map .nosex  .ped     ################
+plink --silent --vcf ${gzvcf} --keep $sample_list_file --threads $thread --recode --out tmp_map_ped --const-fid --allow-extra-chr --chr-set 27
+echo "GOT .map .nosex  .ped"
+
+############    GET .bim, .bed            ################
+plink --threads $thread --silent --file tmp_map_ped --noweb --make-bed --out tmp_bim_bed --allow-extra-chr --chr-set 27
+echo "GOT .bim, .bed"
+
+### change plink format ####
+plink --threads $thread --silent --bfile tmp_bim_bed --recode A --out tmp_bim_bed.012 --allow-extra-chr --chr-set 27
+
+### get genotype matrix #####
+cat tmp_bim_bed.012.raw | cut -d " " -f7- | awk 'NR>1{print}' > tmp_bim_bed.012.geno.txt
+
+############    GET.eigenval, .eigenvec    ################
+plink --silent --threads $thread -bfile tmp_bim_bed --pca 10 --out Final_out_vcf_pca --allow-extra-chr --chr-set 27
+
+conda deactivate
+echo "finished PCA analysis"
+
+cd ../
+###job finished reminder
+echo "Finished at:"
+date

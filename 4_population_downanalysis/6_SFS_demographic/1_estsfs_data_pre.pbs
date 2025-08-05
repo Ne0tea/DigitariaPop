@@ -1,0 +1,26 @@
+#!/bin/bash
+###define PBS arguments
+#PBS -N data_pre
+#PBS -l nodes=1:ppn=1,walltime=30:00:00:00,mem=20g
+#PBS -q fat
+#PBS -j oe
+#PBS -o log_data_pre
+set +u -e
+###job starting reminder
+echo "Starting job at:"
+date
+hostname
+
+###job dir
+cd $PBS_O_WORKDIR
+
+###job command
+#gzvcf="/public4/home/huangyj/Digitaria/population_downanalysis/vcf_filt/all_gatk3/Dsan_all.merge.gatk3.vcf.filtered.gz"
+#outgroup_file
+#pre Dsan_allele_freq
+
+python ~/software/get_estsfs_input_from_vcf.py -P $pre -V $gzvcf -M $map_file -o $outgroup_file -m 0 
+
+###job finished reminder
+echo "Finished at:"
+date

@@ -1,0 +1,33 @@
+#!/bin/bash
+###define PBS arguments
+#PBS -N easySFS
+#PBS -l nodes=1:ppn=1,walltime=30:00:00:00,mem=150g
+#PBS -q low
+#PBS -j oe
+#PBS -o log_easySFS
+
+###job starting reminder
+echo "Starting job at:"
+date
+hostname
+
+###job dir
+cd $PBS_O_WORKDIR
+
+source activate /public/home/huangyj/anaconda3/envs/r_p
+###job command
+#gzvcf
+#pop
+esfs_script='/public/home/huangyj/software/easySFS/easySFS.py'
+
+############    GET contraction file     ################
+python $esfs_script -i $gzvcf -p $pop -a -f --preview > easySFS_pre_out
+proj_vari=`python get_easySFS_pre_proj.py $pop easySFS_pre_out | cut -f 2 -d ' ' | tr '\n' ',' | sed 's/,$//'`
+python $esfs_script -i $gzvcf -p $pop -a -f --proj=${proj_vari} -o ${pre} --nomulti
+#python $esfs_script -i $gzvcf -p $pop -a -f --proj=168,76,116,78,280,54 -o ${pre} --nomulti
+#sh stat.sh
+
+conda deactivate
+###job finished reminder
+echo "Finished at:"
+date

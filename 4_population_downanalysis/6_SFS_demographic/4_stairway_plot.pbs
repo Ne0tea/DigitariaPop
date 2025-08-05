@@ -1,0 +1,32 @@
+#!/bin/bash
+###define PBS arguments
+#PBS -N Stairway_plot
+#PBS -l nodes=1:ppn=20,walltime=30:00:00:00
+#PBS -q fat
+#PBS -j oe
+#PBS -o log_Stairway
+set +u -e
+###job starting reminder
+echo "Starting job at:"
+date
+hostname
+
+###job dir
+cd $PBS_O_WORKDIR
+
+###variable
+make_buleprint='/public4/home/huangyj/Digitaria/population_downanalysis/SFS_demographic/make_blueprint_of_stairway.py'
+Multi_script='/public4/home/huangyj/Digitaria/population_downanalysis/SFS_demographic/sh2multithreaded.py'
+#blue_shell='/public4/home/huangyj/Digitaria/population_downanalysis/SFS_demographic/unfolded_Dsan_allele_freq.blueprint.sh'
+thread=20
+
+###job command
+python $make_buleprint -p $pop_list -s estsfs_Dsan_allele_freq_sfs.txt -o unfolded_Dsan_allele_freq.blueprint
+java -cp /public/home/huangyj/software/stairway_plot_v2.1.1/stairway_plot_es Stairbuilder unfolded_Dsan_allele_freq.blueprint
+
+blue_shell=unfolded_Dsan_allele_freq.blueprint.sh
+python $Multi_script $blue_shell $thread
+
+###job finished
+echo "Finished at:"
+date

@@ -1,0 +1,45 @@
+#!/bin/bash
+###define PBS arguments
+#PBS -N nerual-admix
+#PBS -l nodes=1:ppn=10,walltime=30:00:00:00,mem=200g
+#PBS -q fat
+#PBS -j oe
+#PBS -o log_adm
+
+set +u -e
+###job starting reminder
+echo "Starting job at:"
+date
+hostname
+
+###job dir
+cd $PBS_O_WORKDIR
+
+source activate /public/home/huangyj/anaconda3/envs/nadm
+
+###variable
+#gzvcf or bed
+#pre='Dsan_structure'
+#poplist
+mink=2
+maxk=10
+thread=10
+###job command
+mkdir -p ${pre} && cd ${pre}
+
+if [ ! -s biallelic_merged.bed ] ; then
+/public/home/huangyj/anaconda3/envs/python2pop/bin/plink --memory 102400 --threads $thread --silent --vcf $gzvcf --biallelic-only --make-bed --out biallelic_merged --const-fid --allow-extra-chr --chr-set 27
+fi
+
+for run in {1..10}; do
+mkdir -p run_${run}
+#neural-admixture train --supervised --populations_path $poplist --batch_size 100 --min_k $mink --max_k $maxk --name run_${run} --data_path biallelic_merged.bed --save_dir run_${run}
+neural-admixture train --supervised --populations_path $poplist --batch_size 100 --k $kmer --name run_${run} --data_path biallelic_merged.bed --save_dir run_${run}
+done
+cd ../
+
+echo "finished STRUCTURE analysis"
+conda deactivate
+###job finished reminder
+echo "Finished at:"
+date

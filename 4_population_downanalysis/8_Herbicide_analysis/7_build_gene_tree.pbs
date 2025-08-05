@@ -1,0 +1,57 @@
+#!/bin/bash
+###define PBS arguments
+
+#PBS -N Hap_gene_tree
+#PBS -l nodes=1:ppn=5,walltime=30:00:00:00,mem=3g
+#PBS -q low
+#PBS -j oe
+#PBS -o log_Hap_gene_tree
+
+###job starting reminder
+echo "Starting job at:"
+date
+hostname
+
+###job dir
+cd $PBS_O_WORKDIR
+
+source activate /public/home/huangyj/anaconda3/envs/compare_g
+###job command
+CV_vcf2hapmap_pl="/public/home/huangyj/HLW/polymorphism/5_vcf_cal/tree/4_final_convert_imputedvcf2hapmap.pl"
+CV_hapmap2seq_pl="/public/home/huangyj/HLW/polymorphism/5_vcf_cal/tree/5_haplotype2seq.pl"
+Clean_seq_py="/public/home/huangyj/software/Sequence_clean.py"
+Gene_bed_V3="/public4/home/huangyj/Digitaria/related_ref/Dsan_V3.ord.gene.bed"
+gzvcf="/public4/home/huangyj/Digitaria/population_downanalysis/vcf_filt/all_gatk3/Dsan_all.merge.gatk3.fd.nohomo.recode.vcf.gz"
+#file or gene='Chr12.1503'
+
+############  Preparation    ################
+mkdir -p GWAS_candidate_Gene_tree && cd GWAS_candidate_Gene_tree
+##########vcf2hapmap####################
+
+cat ../$file | while read gene;do
+if [ ! -s ${gene}.hapmap.fa ] ; then
+record=(`grep ${gene} ${Gene_bed_V3}`)
+Chr_name=${record[0]}
+G_start=${record[1]}
+G_end=${record[2]}
+
+/public/home/Grace_shen/soft/anaconda3/bin/bcftools filter $gzvcf --regions ${Chr_name}:${G_start}-${G_end} > ${gene}.vcf
+perl ${CV_vcf2hapmap_pl} ${gene}.vcf
+echo "vcf2hapmap finished"
+
+#########hapmap2seq######################
+perl ${CV_hapmap2seq_pl} ${gene}.hapmap 
+echo "hapmap2seq finished"
+fi
+
+##################Build Tree#####################
+#FastTreeMP -nt unzip_tmp.hapmap.fa > Final_out.tree
+python $Clean_seq_py ${gene}.hapmap.fa
+iqtree -mem 3G -s ${gene}.hapmap.fa -m GTR+F+G4 -B 2000  -bnni -T AUTO --prefix ${gene}.JTT
+
+done
+cd ../
+conda deactivate
+###job finished reminder
+echo "Finished at:"
+date

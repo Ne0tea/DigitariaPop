@@ -1,0 +1,40 @@
+#!/bin/bash
+###define PBS arguments
+#PBS -N fasttree
+#PBS -l nodes=1:ppn=20,walltime=30:00:00:00
+#PBS -q fat
+#PBS -j oe
+#PBS -o log_fasttree
+
+###job starting reminder
+echo "Starting job at:"
+date
+hostname
+
+###job dir
+cd $PBS_O_WORKDIR
+
+source activate /public/home/huangyj/anaconda3/envs/compare_g
+###job command
+#vcf="/public4/home/huangyj/Digitaria/population_downanalysis/vcf_filt/all_gatk3/Dsan_all.merge.gatk3.vcf.filtered.gz"
+#prefix=''
+
+mkdir -p ${prefix} && cd ${prefix}
+##########vcf2hapmap####################
+if [ ! -s unzip_tmp.hapmap.fa ] ; then
+ln -s ../$vcf ./unzip_tmp.vcf
+perl /public/home/huangyj/HLW/polymorphism/5_vcf_cal/tree/4_final_convert_imputedvcf2hapmap.pl unzip_tmp.vcf
+echo "vcf2hapmap finished"
+
+#########hapmap2seq######################
+perl /public/home/huangyj/HLW/polymorphism/5_vcf_cal/tree/5_haplotype2seq.pl unzip_tmp.hapmap 
+echo "hapmap2seq finished"
+fi
+
+#########FastTreeMP#####################
+FastTreeMP -nt unzip_tmp.hapmap.fa > Final_out.tree
+
+conda deactivate
+###job finished reminder
+echo "Finished at:"
+date

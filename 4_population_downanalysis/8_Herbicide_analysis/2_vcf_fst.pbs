@@ -1,0 +1,36 @@
+#!/bin/bash
+###define PBS arguments
+#PBS -N Fst
+#PBS -l nodes=1:ppn=20,walltime=30:00:00:00
+#PBS -q low
+#PBS -j oe
+#PBS -o log_Fst
+
+###job starting reminder
+echo $USER
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+
+
+###job dir
+cd $PBS_O_WORKDIR
+
+source activate /public/home/huangyj/anaconda3/envs/python2pop
+###variable
+#gzvcf
+#pop1
+#pop2
+#prefix
+###job command
+
+vcftools --gzvcf ${gzvcf} --weir-fst-pop $pop1 --weir-fst-pop $pop2 --out ${prefix}.100k50k --fst-window-size 100000 --fst-window-step 50000
+
+vcftools --gzvcf $gzvcf --weir-fst-pop $pop1 --weir-fst-pop $pop2 --out ${prefix}.50k20k --fst-window-size 50000 --fst-window-step 20000
+
+vcftools --gzvcf $gzvcf --weir-fst-pop $pop1 --weir-fst-pop $pop2 --out ${prefix}.20k10k --fst-window-size 20000 --fst-window-step 10000
+
+conda deactivate
+###job finished reminder
+echo "Finish at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+

@@ -1,0 +1,35 @@
+#!/bin/bash
+###define PBS arguments
+#PBS -N D-statistic
+#PBS -l nodes=1:ppn=5,walltime=30:00:00:00,mem=5g
+#PBS -q low
+#PBS -j oe
+#PBS -o log_per_RUN
+
+###job starting reminder
+echo "Starting job at:"
+date
+hostname
+
+###job dir
+cd $PBS_O_WORKDIR
+
+Dsuite="/public/home/huangyj/software/Dsuite/Build/Dsuite"
+###Variable
+#gzvcf="/public4/home/huangyj/Digitaria/population_downanalysis/vcf_filt/all_gatk3/Dsan_all.merge.gatk3.vcf.fd.maf1mas7.annotate.gz_fded_SNP.eff.vcf.gz"
+#popC
+#popDE
+#prefix
+gzvcf_SubC='/public4/home/huangyj/Digitaria/population_downanalysis/vcf_filt/all_gatk3/Dsan_all.merge.gatk3.fd.nohomo.recode_fded_SNP.eff.subC.vcf.gz'
+gzvcf_SubDE='/public4/home/huangyj/Digitaria/population_downanalysis/vcf_filt/all_gatk3/Dsan_all.merge.gatk3.fd.nohomo.recode_fded_SNP.eff.subDE.vcf.gz'
+sample_tree="/public4/home/huangyj/Digitaria/population_downanalysis/Sympatric_introgression/group.tree"
+############ ABBA-BABA test ################
+
+$Dsuite Dtrios $gzvcf_SubC $popC -o ${prefix}_SubC -t $sample_tree
+$Dsuite Dtrios $gzvcf_SubDE $popDE -o ${prefix}_SubDE -t $sample_tree
+$Dsuite DtriosCombine -o ${prefix}_merged -t $sample_tree ${prefix}_SubDE ${prefix}_SubC
+$Dsuite Fbranch $sample_tree ${prefix}_merged_tree.txt > ${prefix}.out
+
+###job finished reminder
+echo "Finished at:"
+date

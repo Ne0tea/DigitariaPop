@@ -1,0 +1,28 @@
+#!/bin/bash
+###define PBS arguments
+#PBS -N Split
+#PBS -l nodes=1:ppn=10,walltime=2400:00:00,mem=10g
+#PBS -q fat
+#PBS -j oe
+#PBS -o log_split
+
+set -u
+###job starting reminder
+echo "Starting job at:"
+date
+hostname
+
+###job dir
+cd $PBS_O_WORKDIR
+
+###job command
+#gzvcf
+resistant_sample='/public4/home/huangyj/Digitaria/population_downanalysis/vcf_filt/all_gatk3/Beagle/Dsan_R_V2.sample.list'
+sensitive_sample='/public4/home/huangyj/Digitaria/population_downanalysis/vcf_filt/all_gatk3/Beagle/Dsan_S_V2.sample.list'
+
+/public/home/huangyj/anaconda3/envs/population/bin/vcftools --gzvcf $gzvcf --keep $resistant_sample --IMPUTE --out ${gzvcf/.vcf.gz/}_R_refine
+/public/home/huangyj/anaconda3/envs/population/bin/vcftools --gzvcf $gzvcf --keep $sensitive_sample --IMPUTE --out ${gzvcf/.vcf.gz/}_S_refine
+
+###job finished reminder
+echo "Finished at:"
+date

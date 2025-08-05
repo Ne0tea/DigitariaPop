@@ -1,0 +1,49 @@
+#!/bin/bash
+###define PBS arguments
+#PBS -N GW_D-statistic
+#PBS -l nodes=1:ppn=40,walltime=30:00:00:00
+#PBS -q low
+#PBS -j oe
+#PBS -o log_GW_D-statistic
+
+###job starting reminder
+echo "Starting job at:"
+date
+hostname
+
+###job dir
+cd $PBS_O_WORKDIR
+
+genomic_script_path="/public/home/huangyj/software/genomics_general-master"
+###Variable
+gzvcf="/public4/home/huangyj/Digitaria/population_downanalysis/vcf_filt/all_gatk3/Dsan_all.merge.gatk3.fd.nohomo.recode_fded_SNP.eff.vcf.gz"
+#ldgzvcf="/public4/home/huangyj/Digitaria/population_downanalysis/vcf_filt/all_gatk3/Dsan_all.merge.gatk3.vcf.fd.maf1mas7.annotate.50kb_5_0.5.vcf.gz"
+subC_chr='/public4/home/huangyj/Digitaria/population_downanalysis/Sympatric_introgression/0_Dsan_subC_chr'
+subDE_chr='/public4/home/huangyj/Digitaria/population_downanalysis/Sympatric_introgression/0_Dsan_subDE_chr'
+#pop
+############ ABBA-BABA test  ################
+outgz=${gzvcf/.vcf.gz/.geno.gz}
+#outgz=${ldgzvcf/.vcf.gz/.geno.gz}
+#pop_pre=${popC/_SubC.pop.list/}
+#python ${genomic_script_path}/VCF_processing/parseVCFs.py -i $gzvcf --skipIndels --minQual 30 --gtf flag=DP min=5 max=50 -o $outgz
+#windows=(100000 50000 10000)
+#snps=(100 50 25)
+windows=(10000)
+snps=(20)
+
+for i in "${!windows[@]}"; do
+
+window=${windows[i]}
+snp_n=${snps[i]}
+step_size=`expr ${window} / 2`
+python ${genomic_script_path}/ABBABABAwindows.py -g $outgz -f phased -o ${pop_pre}_${window}_${snp_n}_fd.csv -w $window -m $snp_n -s $step_size -P1 S -P2 R -P3 C4 -O Outgroup -T 40 --minData 0.1 --popsFile $pop --writeFailedWindows
+#python ${genomic_script_path}/ABBABABAwindows.py -g $outgz --include $subDE_chr -f phased -o ${pop_pre}_${window}_${snp_n}_SubDE_fd.csv -w $window -m $snp_n -s $step_size -P1 R -P2 S -P3 C4 -O Outgroup -T 16 --minData 0.1 --popsFile $popDE --writeFailedWindows
+#python ${genomic_script_path}/freq.py -g $outgz -p allopatric -p sympatric -p C4 -p Outgroup --popsFile $popC --target derived -o ${pop_pre}_Sym_freq_ld_SubC_${window}_${snp_n}.csv
+#python ${genomic_script_path}/freq.py -g $outgz -p allopatric -p sympatric -p C4 -p Outgroup --popsFile $popDE --target derived -o ${pop_pre}_Sym_freq_ld_SubDE_${window}_${snp_n}.csv
+#python ${genomic_script_path}/popgenWindows.py -w $window -m $snp_n --minData 0.1 -g $outgz -o ${pop_pre}_${window}_${snp_n}_pi.csv -f phased -T 20 -p R -p C4 --popsFile $pop
+#python ${genomic_script_path}/popgenWindows.py -w $window -m $snp_n --minData 0.1 -g $outgz -o ${pop_pre}_${window}_${snp_n}_SubDE_pi.csv -f phased -T 10 -p R -p C4 --popsFile $popDE --include $subDE_chr
+done
+
+###job finished reminder
+echo "Finished at:"
+date

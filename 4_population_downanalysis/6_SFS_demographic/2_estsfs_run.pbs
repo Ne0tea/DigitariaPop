@@ -1,0 +1,28 @@
+#!/bin/bash
+###define PBS arguments
+#PBS -N estSFS
+#PBS -l nodes=1:ppn=1,walltime=30:00:00:00,mem=20g
+#PBS -q fat
+#PBS -j oe
+#PBS -o log_estSFS
+set +u -e
+###job starting reminder
+echo "Starting job at:"
+date
+hostname
+
+###job dir
+cd $PBS_O_WORKDIR
+
+source activate /public/home/huangyj/anaconda3/envs/r_p
+###variable
+#gzvcf="/public4/home/huangyj/Digitaria/population_downanalysis/vcf_filt/all_gatk3/Dsan_all.merge.gatk3.vcf.filtered.gz"
+#pre="Dsan_allele_freq"
+###job command
+
+est-sfs ${pre}_config.txt ${pre}_data.txt ${pre}_seed.txt ${pre}_sfs.txt ${pre}_pvalues.txt
+
+conda deactivate
+###job finished reminder
+echo "Finished at:"
+date

@@ -1,0 +1,62 @@
+#!/bin/bash
+###define PBS arguments
+
+#PBS -N structure
+#PBS -l nodes=1:ppn=5,walltime=30:00:00:00,mem=100g
+#PBS -q fat
+#PBS -j oe
+#PBS -o log_structure
+
+###job starting reminder
+echo "Starting job at:"
+date
+hostname
+
+###job dir
+cd $PBS_O_WORKDIR
+
+###job command
+############    change conda env   ################
+source activate /public/home/huangyj/anaconda3/envs/python2pop
+#gzvcf or bed
+#bed="/public4/home/huangyj/Digitaria/population_downanalysis/pca/tmp_bim_bed"
+#pre='Dsan_structure'
+#rep=
+thread=5
+
+mkdir -p ${pre} && cd ${pre}
+
+if [ 1 -ne 1 ]; then
+/public/home/Grace_shen/soft/anaconda3/bin/bcftools query -f '%CHROM\t%POS\n' $gzvcf | shuf -n 300000 > random_snps.txt
+/public/home/Grace_shen/soft/anaconda3/bin/bcftools view -R random_snps.txt $gzvcf -Oz -o ${pre}.vcf.gz
+fi
+
+############  STRUCTURE analysis   ################
+#plink --silent --vcf $gzvcf --threads $thread --recode --out tmp_map_ped --const-fid --allow-extra-chr --chr-set 27
+#echo "GOT .map .nosex  .ped"
+############    GET .bim, .bed            ################
+#plink --threads $thread --silent --file tmp_map_ped --noweb --make-bed --out tmp_bim_bed --allow-extra-chr --chr-set 27
+bed=`pwd`/biallelic_merged
+echo "GOT .bim, .bed"
+
+mkdir -p $rep && cd $rep
+outputpre=${pre}_${rep}
+
+python /public/home/huangyj/anaconda3/envs/python2pop/bin/structure.py -K ${kmer} --cv=3 --input=$bed --output=${outputpre}
+#python /public/home/huangyj/anaconda3/envs/python2pop/bin/structure.py -K 3 --input=$bed --output=${outputpre}
+#python /public/home/huangyj/anaconda3/envs/python2pop/bin/structure.py -K 4 --input=$bed --output=${outputpre}
+#python /public/home/huangyj/anaconda3/envs/python2pop/bin/structure.py -K 5 --input=$bed --output=${outputpre}
+#python /public/home/huangyj/anaconda3/envs/python2pop/bin/structure.py -K 6 --input=$bed --output=${outputpre}
+#python /public/home/huangyj/anaconda3/envs/python2pop/bin/structure.py -K 7 --input=$bed --output=${outputpre}
+#python /public/home/huangyj/anaconda3/envs/python2pop/bin/structure.py -K 8 --input=$bed --output=${outputpre}
+#python /public/home/huangyj/anaconda3/envs/python2pop/bin/structure.py -K 9 --input=$bed --output=${outputpre}
+#python /public/home/huangyj/anaconda3/envs/python2pop/bin/structure.py -K 10 --input=$bed --output=${outputpre}
+
+cd ../
+#chooseK.py --input=${outputpre}
+
+echo "finished STRUCTURE analysis"
+conda deactivate
+###job finished reminder
+echo "Finished at:"
+date

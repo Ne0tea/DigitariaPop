@@ -1,0 +1,73 @@
+#!/bin/bash
+###define PBS arguments
+
+#PBS -N structure
+#PBS -l nodes=1:ppn=1,walltime=30:00:00:00,mem=50g
+#PBS -q low
+#PBS -j oe
+#PBS -o log_structure
+
+###job starting reminder
+echo "Starting job at:"
+date
+hostname
+
+###job dir
+cd $PBS_O_WORKDIR
+
+###job command
+############    change conda env   ################
+source activate /public/home/huangyj/anaconda3/envs/python2pop
+#gzvcf or bed
+#bed="/public4/home/huangyj/Digitaria/population_downanalysis/pca/tmp_bim_bed"
+#pre='Dsan_structure'
+thread=1
+file_name=`basename $chr_file`_syn
+mkdir -p ${file_name} && cd ${file_name}
+
+if [ ! -s ${file_name}.vcf.gz ] ; then
+chr_list=''
+for i in `cat $chr_file`; do
+chr_list+="${i},"
+done
+chr_list=${chr_list%,*}
+/public/home/Grace_shen/soft/anaconda3/bin/bcftools view -r ${chr_list} $gzvcf -o ${file_name}.vcf.gz -Oz
+fi
+/public/home/Grace_shen/soft/anaconda3/bin/bcftools index ${file_name}.vcf.gz
+
+if [ 1 -ne 1 ]; then
+/public/home/Grace_shen/soft/anaconda3/bin/bcftools query -f '%CHROM\t%POS\n' $gzvcf | shuf -n 300000 > random_snps.txt
+/public/home/Grace_shen/soft/anaconda3/bin/bcftools view -R random_snps.txt $gzvcf -Oz -o ${file_name}.vcf.gz
+fi
+
+############  STRUCTURE analysis   ################
+plink --silent --vcf ${file_name}.vcf.gz --threads $thread --recode --out tmp_map_ped --const-fid --allow-extra-chr --chr-set 27
+echo "GOT .map .nosex  .ped"
+############    GET .bim, .bed            ################
+plink --threads $thread --silent --file tmp_map_ped --noweb --make-bed --out tmp_bim_bed --allow-extra-chr --chr-set 27
+bed=`pwd`/tmp_bim_bed
+echo "GOT .bim, .bed"
+
+for rep in {1..10} ; do 
+mkdir -p $rep && cd $rep
+#for i in {2..8};do python ~/.conda/envs/python2_env_xie/bin/structure.py -K ${i} --input=all_WGS_mis8maf1_vcf --output=all_WGS_mis8maf1_structure;done
+python /public/home/huangyj/anaconda3/envs/python2pop/bin/structure.py -K 2 --input=$bed --output=${pre}_${rep}
+python /public/home/huangyj/anaconda3/envs/python2pop/bin/structure.py -K 3 --input=$bed --output=${pre}_${rep}
+python /public/home/huangyj/anaconda3/envs/python2pop/bin/structure.py -K 4 --input=$bed --output=${pre}_${rep}
+python /public/home/huangyj/anaconda3/envs/python2pop/bin/structure.py -K 5 --input=$bed --output=${pre}_${rep}
+python /public/home/huangyj/anaconda3/envs/python2pop/bin/structure.py -K 6 --input=$bed --output=${pre}_${rep}
+python /public/home/huangyj/anaconda3/envs/python2pop/bin/structure.py -K 7 --input=$bed --output=${pre}_${rep}
+python /public/home/huangyj/anaconda3/envs/python2pop/bin/structure.py -K 8 --input=$bed --output=${pre}_${rep}
+python /public/home/huangyj/anaconda3/envs/python2pop/bin/structure.py -K 9 --input=$bed --output=${pre}_${rep}
+python /public/home/huangyj/anaconda3/envs/python2pop/bin/structure.py -K 10 --input=$bed --output=${pre}_${rep}
+cd ../
+done
+chooseK.py --input=${pre}_${rep}
+#distruct.py -K 5 --input=all_WGS_mis8maf1_structure --output=all_WGS_mis8maf1_structure.svg
+
+
+echo "finished STRUCTURE analysis"
+conda deactivate
+###job finished reminder
+echo "Finished at:"
+date

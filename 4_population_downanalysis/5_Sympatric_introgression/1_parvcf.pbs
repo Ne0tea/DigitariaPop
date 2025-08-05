@@ -1,0 +1,28 @@
+#!/bin/bash
+###define PBS arguments
+#PBS -N ParseVcf
+#PBS -l nodes=1:ppn=10,walltime=30:00:00:00
+#PBS -q low
+#PBS -j oe
+#PBS -o log_ParseVcf
+
+###job starting reminder
+echo "Starting job at:"
+date
+hostname
+
+###job dir
+cd $PBS_O_WORKDIR
+
+genomic_script_path="/public/home/huangyj/software/genomics_general-master"
+###Variable
+#gzvcf="/public4/home/huangyj/Digitaria/population_downanalysis/vcf_filt/all_gatk3/Dsan_all.merge.gatk3.vcf.fd.maf1mas7.annotate.gz_fded_SNP.eff.vcf.gz"
+#pop="/public4/home/huangyj/Digitaria/population_downanalysis/introgression/ABBA/GATK3_C4C5_map.list"
+############ ABBA-BABA test  ################
+outgz=${gzvcf/.vcf.gz/.geno.gz}
+
+python ${genomic_script_path}/VCF_processing/parseVCFs.py -i $gzvcf --skipIndels --minQual 30 -t 10 --gtf flag=DP min=5 max=50 -o $outgz
+
+###job finished reminder
+echo "Finished at:"
+date

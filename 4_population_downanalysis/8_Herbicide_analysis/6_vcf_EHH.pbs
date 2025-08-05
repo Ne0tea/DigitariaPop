@@ -1,0 +1,29 @@
+#!/bin/bash
+###define PBS arguments
+#PBS -N EHH
+#PBS -l nodes=1:ppn=10,walltime=30:00:00:00
+#PBS -q low
+#PBS -j oe
+#PBS -o log_EHH
+
+###job starting reminder
+echo $USER
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+
+###job dir
+cd $PBS_O_WORKDIR
+
+source activate /public/home/huangyj/anaconda3/envs/selscan
+###variable
+#gzvcf
+#keep_pop
+#prefix
+###job command
+
+/public/home/huangyj/software/selscan-2.0.3/bin/linux/selscan-2.0.3
+
+conda deactivate
+###job finished reminder
+echo "Finish at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
