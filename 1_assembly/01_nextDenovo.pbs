@@ -1,0 +1,21 @@
+#PBS -N Nextdenovo_ONT
+#PBS -l nodes=node21:ppn=30,walltime=30:00:00:00,mem=500g
+#PBS -q pang
+#PBS -j oe
+#PBS -o log_ND_ONT
+echo "Starting"
+date
+hostname
+
+cd $PBS_O_WORKDIR
+##arguments
+
+##job area
+source activate /public/home/huangyj/anaconda3/envs/nextdenovo
+
+nextDenovo run.cfg
+
+conda deactivate
+echo "Finished"
+date
+

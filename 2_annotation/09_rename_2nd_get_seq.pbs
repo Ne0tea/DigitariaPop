@@ -1,0 +1,34 @@
+#PBS -N anno_final
+#PBS -l nodes=1:ppn=1,walltime=30:00:00:00
+#PBS -q fat
+#PBS -j oe
+#PBS -o log_anno_final
+
+echo "Starting"
+date
+hostname
+
+export PATH=/usr/bin:$PATH
+
+cd $PBS_O_WORKDIR
+##arguments
+script="/public2/huangyj/Digitaria/annotation/EVM/_09_reorder_gff3.pl"
+EVM_script='/public/software/apps/EVidenceModeler-1.1.1/EvmUtils/gff3_file_to_proteins.pl'
+
+#modify
+#filtered.R498_evm_combined_evm_out.gff3
+#filtered.HLW_final_combined_evm_out.gff3
+prefix="Dsan_EVM"
+gff_prefix="filtered.${prefix}_combined_evm_out"
+#genome_dir="/public3/jial/weedyrice_pangenome/03_genome_assembly/11_racon4final/"
+genome="/public2/huangyj/Digitaria/annotation/Dsan_chr.V2.fa"
+#genome="$genome_dir/trimed_${prefix}_racon_round3.fa"
+#genome="/public3/jial/weedyrice_pangenome/00_public_data/01_rice_ref_genome/IRGSP-1.0_genome.fasta"
+
+##job area
+perl $script ${gff_prefix}.gff3
+perl $EVM_script "ordered.${gff_prefix}.gff3" $genome prot >"ordered.${gff_prefix}.prot.fasta"
+perl $EVM_script "ordered.${gff_prefix}.gff3" $genome CDS >"ordered.${gff_prefix}.CDS.fasta"
+
+echo "Finished"
+date

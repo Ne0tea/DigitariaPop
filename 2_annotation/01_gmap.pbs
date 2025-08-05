@@ -1,0 +1,53 @@
+#PBS -N gmap24
+#PBS -l nodes=1:ppn=30,walltime=30:00:00:00
+#PBS -q batch2
+#PBS -j oe
+#PBS -o log_gmap24
+
+echo "Starting"
+date
+hostname
+
+cd $PBS_O_WORKDIR
+
+source activate /public/home/huangyj/anaconda3/envs/tophat
+cds1='/public4/home/huangyj/Digitaria/related_ref/Dexi_cds.fasta'
+cds2='/public/home/wudy/pan-poaceae/genome_base/Osat_cds.fasta'
+cds3='/public/home/wudy/pan-poaceae/genome_base/Zmay_cds.fasta'
+cds4='/public/home/huangyj/HLW/related_ref/CDS/At_cds.fa'
+
+
+##job area
+#cat sample_list24 |while read sp
+#do 
+	echo -e "\nSoving $sp"
+
+#	mkdir ${sp}
+#	cd ${sp}
+#	ln -s /public3/jial/weedyrice_pangenome/03_genome_assembly/06_RaGOO/${sp}/ragoo_output/ragoo.fasta    ${sp}_ragoo.fasta 
+
+	##arguments
+	mkdir -p ./gmapdb
+        ref_dir='./gmapdb'
+	genome=Dsan_chr.V2
+	genome_fa=Dsan_chr.V2.fa.masked
+	
+	###Step1: genome index
+	gmap_build -D $ref_dir -d $genome ${genome_fa}
+
+	###Step2: run gmap
+	gmap -D $ref_dir -d $genome -f 2 -t 30 ${cds1} > ${genome}_Dexi.gff3
+	gmap -D $ref_dir -d $genome -f 2 -t 30 ${cds2} > ${genome}_Osat.gff3
+	gmap -D $ref_dir -d $genome -f 2 -t 30 ${cds3} > ${genome}_Zmay.gff3
+	gmap -D $ref_dir -d $genome -f 2 -t 30 ${cds4} > ${genome}_Atat.gff3
+
+	#Step 3:update更新gff文件中第二列的名称方便下一步evm过滤 
+	less ${genome}_Dexi.gff3 |perl -npe "s/${genome}\t/Dexi\t/g" >${genome}_Dexil_update.gff3
+	less ${genome}_Osat.gff3 |perl -npe "s/${genome}\t/Osat\t/g" >${genome}_Osat_update.gff3
+	less ${genome}_Zmay.gff3 |perl -npe "s/${genome}\t/Zmay\t/g" >${genome}_Zmay_update.gff3
+	less ${genome}_Atat.gff3 |perl -npe "s/${genome}\t/Atat\t/g" >${genome}_Atat_update.gff3
+	
+	#cd ..
+conda deactivate
+echo "Finished"
+date

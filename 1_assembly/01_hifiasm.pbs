@@ -1,0 +1,22 @@
+#PBS -N Hifiasm_ONT
+#PBS -l nodes=node21:ppn=50,walltime=30:00:00:00
+#PBS -q pang
+#PBS -j oe
+#PBS -o log_Hifiasm_ONT
+echo "Starting"
+date
+hostname
+
+cd $PBS_O_WORKDIR
+##arguments
+hifi_fq="/public4/home/huangyj/Digitaria/Dsan_ref_data/HiFi/Dsan_hifi.fq"
+prefix="Dsan_hifiasm"
+ul_fq="/public4/home/huangyj/Digitaria/Dsan_ref_data/ONT/Dsan_UL.fq.gz"
+threads=50
+
+##job area
+/public/home/huangyj/software/hifiasm/hifiasm --ul-cut 10000 --ul $ul_fq -o ${prefix} -t $threads $hifi_fq
+awk '/^S/{print ">"$2;print $3}' ${prefix}.bp.p_ctg.gfa > ${prefix}.bp.p_ctg.fa
+echo "Finished"
+date
+

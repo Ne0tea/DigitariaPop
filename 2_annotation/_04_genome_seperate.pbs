@@ -1,0 +1,21 @@
+#PBS -N genome_seperate
+#PBS -l nodes=1:ppn=1,walltime=30:00:00:00
+#PBS -q fat
+#PBS -j oe
+#PBS -o log_genome_seperate
+
+echo "Starting"
+date
+hostname
+
+cd $PBS_O_WORKDIR 
+##arguments
+#config_dir='/public/software/apps/augustus-3.2.2/config'
+
+##job area#
+
+
+perl _04_1_separate_genome.pl Dsan_chr.V2.fa.masked 10 Dsan_chr.V2
+
+echo "Finished"
+date

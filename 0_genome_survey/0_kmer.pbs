@@ -1,0 +1,40 @@
+###define PBS arguments
+
+#PBS -N kmer_with_smudgep
+#PBS -l nodes=1:ppn=15,walltime=30:00:00:00
+#PBS -q pang
+#PBS -j oe
+#PBS -o log_kmer_smudgep
+
+###job starting reminder
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+###job dir
+cd $PBS_O_WORKDIR
+source activate /public/home/huangyj/anaconda3/envs/r_p 
+###job command
+ploidy=6
+#kmer=31
+
+cd /public4/home/huangyj/Digitaria/Dsan_ref_data/Ngseq/
+#gunzip ./*fq.gz
+cd $PBS_O_WORKDIR
+
+for kmer in 19 21 23; 
+do
+jellyfish count -C -m $kmer  -s 1000000000 -t 30 /public4/home/huangyj/Digitaria/Dsan_ref_data/Ngseq/*fq -o reads${kmer}.jf
+jellyfish histo -t 30 reads${kmer}.jf > reads${kmer}.histo
+genomescope2 -i reads${kmer}.histo -o ${kmer}_p6_scope2 -k ${kmer} -p ${ploidy} -m 200000
+Rscript /public/home/huangyj/software/genomescope-master/genomescope.R reads${kmer}.histo $kmer 150 ${kmer}_p6_scope 200000
+#L=$(smudgeplot.py cutoff reads${kmer}.histo L)
+#U=$(smudgeplot.py cutoff reads${kmer}.histo U)
+#echo $L $U # these need to be sane values like 30 800 or so
+#jellyfish dump -c -L $L -U $U reads${kmer}.jf -o reads${kmer}.dump
+#smudgeplot.py hetkmers -o ${kmer}_pairs reads${kmer}.dump
+#smudgeplot.py plot ${kmer}_pairs_coverages_2.tsv -o ${kmer}_genome
+done
+
+###job finished reminder
+conda deactivate
+echo "Finished at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'

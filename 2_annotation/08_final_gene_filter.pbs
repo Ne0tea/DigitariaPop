@@ -1,0 +1,50 @@
+#PBS -N remove_gene
+#PBS -l nodes=1:ppn=5,walltime=30:00:00:00
+#PBS -q fat
+#PBS -j oe
+#PBS -o log_gene_removed
+
+##使用说明
+##该部分包含两个步骤:
+##1.高可信度基因集中重复序列基因和较短基因的去除，得到最终高可信基因集;
+##2.根据过滤后gene列表从EVM整合的GFF3中提取对应数据得到最终基因组注释GFF3文件;
+#
+##对应上述两个步骤，包含如下两个脚本(脚本内参数无需改动):
+##07_0_high_gene_list_filter.pl
+##07_1_extract_anno_from_EVMGFF3.pl
+#
+##准备文件
+##重复序列基因列表，对应 repeat_list 变量
+##待过滤短基因列表，对应 invalid_list 变量
+##高可信基因列表，对应 ab_high_list 变量
+##EVM整合得到GFF3注释文件，对应 EVM_GFF3 变量
+#
+##输出结果
+##final_reserved_gene_list	最终高可信基因列表，对应 final_list 变量
+##combined_evm_out.gff3	过滤后基因组注释数据，对应 EVM_GFF3 变量
+#
+##说明结束
+
+echo "Starting"
+date
+hostname
+
+cd $PBS_O_WORKDIR
+##arguments
+#script
+script1="/public2/huangyj/Digitaria/annotation/EVM/_08_high_gene_list_filter.pl"
+script2="/public2/huangyj/Digitaria/annotation/EVM/_08_extract_anno_from_EVMGFF3.pl"
+
+#file
+repeat_list="trimtit.Dsan_EVM_combined_evm_out.prot.fa.blast.repeat_overlap.list"
+invalid_list='invalid_genelist.txt'
+ab_high_list='abinitio_high_confidence_gene.list'
+EVM_GFF3="Dsan_EVM_combined_evm_out.gff3"
+final_list='final_reserved_gene_list'	#keep it
+
+##job area
+perl $script1 $repeat_list $invalid_list $ab_high_list $final_list
+perl $script2 $final_list $EVM_GFF3
+
+echo "Finished"
+date

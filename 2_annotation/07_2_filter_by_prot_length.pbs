@@ -1,0 +1,38 @@
+#PBS -N filter_by_len
+#PBS -l nodes=1:ppn=1,walltime=30:00:00:00
+#PBS -q fat
+#PBS -j oe
+#PBS -o log_filter
+
+##使用说明
+##这部分根据蛋白长度过滤短基因序列
+#
+##包含脚本:
+##05_1_get_short_prot_list.pl
+#
+##准备文件
+##注释蛋白文件，对应 prot 变量
+#
+##输出文件
+## invalid_genelist.txt	短基因列表
+## *.validprotseq	#去除短基因后蛋白文件，无用
+#
+##说明结束
+
+echo "Starting"
+date
+hostname
+
+cd $PBS_O_WORKDIR
+##arguments
+#script
+script="/public2/huangyj/Digitaria/annotation/EVM/_07_2_get_short_prot_list.pl"
+#data & argument
+prot='Dsan_EVM_combined_evm_out.prot.fa'
+len='50'
+
+##job area
+perl $script $prot $len
+
+echo "Finished"
+date

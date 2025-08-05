@@ -1,0 +1,31 @@
+#PBS -N transcript
+#PBS -l nodes=1:ppn=8,walltime=30:00:00:00
+#PBS -q batch2
+#PBS -j oe
+#PBS -o log_transcript
+
+echo "Starting"
+date
+hostname
+
+cd $PBS_O_WORKDIR
+##arguments
+source activate /public/home/huangyj/anaconda3/envs/tophat
+##job area
+rna_list="rna_list"
+outgff="Dsan_chr.V2.gff3"
+##generate gtf list
+rm -f all_cufflinks_gtf.list
+for i in `cat $rna_list `
+do
+	echo "$i/cufflinks_out/transcripts.gtf" >>all_cufflinks_gtf.list
+done
+
+##cuffmerge
+cuffmerge -o merged.gtf -p 8 all_cufflinks_gtf.list
+
+##gtf2gff3
+#gffread merged.gtf/merged.gtf -o $outgff
+conda deactivate
+echo "Finished"
+date

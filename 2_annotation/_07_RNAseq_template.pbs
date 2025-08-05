@@ -1,0 +1,29 @@
+#PBS -N RNAseq
+#PBS -l nodes=1:ppn=20,walltime=30:00:00:00
+#PBS -q batch2
+#PBS -j oe
+#PBS -o log_RNAseq
+set -u -e 
+echo "Starting"
+date
+hostname
+
+cd $PBS_O_WORKDIR
+##arguments
+source activate /public/home/huangyj/anaconda3/envs/tophat 
+##job area
+if [ ! -e ${genome%.*}.1.bt2 ];then
+bowtie2-build $genome ${genome%.*}
+fi
+if [ ! -e ${genome%.*}.1.bt2l ];then
+bowtie2-build $genome ${genome%.*}
+fi
+mkdir -p $sp_id
+mkdir -p $sp_id/tophat_out
+fq1=$path/${sp_id}*1.fq.gz
+fq2=$path/${sp_id}*2.fq.gz
+tophat -p 20 -o $sp_id/tophat_out ${genome%.*} $fq1 $fq2
+cufflinks -p 20 --no-update-check -o $sp_id/cufflinks_out $sp_id/tophat_out/accepted_hits.bam
+conda deactivate
+echo "Finished"
+date

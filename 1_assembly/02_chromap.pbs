@@ -1,0 +1,51 @@
+#!/bin/bash
+#PBS -N scaffold_chromap
+#PBS -l nodes=1:ppn=30,walltime=30:00:00:00,mem=180g
+#PBS -q batch2
+#PBS -j oe
+#PBS -o log_scaffold_chromap
+echo "Starting"
+date
+hostname
+
+cd $PBS_O_WORKDIR
+##arguments
+source activate /public/home/huangyj/anaconda3/envs/hic-scaffolding
+
+contigsFasta=$fa
+r1Reads=$r1
+r2Reads=$r2
+
+# make index
+if [ ! -s ${contigsFasta}.fai ] ; then
+samtools faidx $contigsFasta
+fi
+if [ ! -s ${contigsFasta}.chromap.index ] ; then
+chromap -i -r $contigsFasta -o ${contigsFasta}.chromap.index
+fi
+
+# alignment
+chromap \
+    --preset hic \
+    -r $contigsFasta \
+    -x ${contigsFasta}.chromap.index \
+    --remove-pcr-duplicates \
+    -1 $r1Reads \
+    -2 $r2Reads \
+    --SAM \
+    -o ${r1Reads%%.*}.sam \
+    -t 30
+
+# sort
+sambamba-1.0.1 view -S -f bam -h ${r1Reads%%.*}.sam -o ${r1Reads%%.*}.bam
+sambamba-1.0.1 sort -t 30 -N ${r1Reads%%.*}.bam -o ${r1Reads%%.*}.sorted.bam 
+
+if [ $? -eq 0 ]; then
+rm ${r1Reads%%.*}.sam
+rm ${r1Reads%%.*}.bam
+fi
+
+conda deactivate
+echo "Finished"
+date
+

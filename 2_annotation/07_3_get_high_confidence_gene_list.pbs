@@ -1,0 +1,72 @@
+#PBS -N high_confidence_gene
+#PBS -l nodes=1:ppn=1,walltime=30:00:00:00
+#PBS -q fat
+#PBS -j oe
+#PBS -o log_high_confidence_list
+set -e -u
+##使用说明
+##这部分包含两个步骤:
+##1.根据EVM整合结果提取每个基因的证据类型;
+##2.根据每个基因的证据类型判断其是否可信，得到最后可信基因集;
+#
+##对应上述两个步骤，包括两个脚本:
+##06_0_gene_evidence_stat.pl
+##06_1_get_high_confidence_gene_list.pl
+#
+##准备文件
+##EVM整合结果目录，需要从该目录中获取各个基因的整合结果，对应 EVM_dir 变量
+##基因组拆分数目，EVM整合时拆分的数目，对应 sep_num 变量
+##EVM整合时拆分命名前缀，对应 prefix 变量
+##GFF3文件，EVM整合后的注释文件，对应 gff3 变量
+##EVM整合时的权重文件，为了获取所有注释方法，对应 evm_weight 变量
+#
+##输出结果
+##final_command_info.sh，中间文件，自动生成，自动执行统计EVM结果 
+##final_all_EVM.evidence，EVM整合后所有基因的证据支持情况，对应 evidence 变量
+##abinitio_high_confidence_gene.list，高可信基因列表
+##abinitio_low_confidence_gene.list，低可信基因列表，不会用于后续分析
+#
+##说明结束
+
+echo "Starting"
+date
+hostname
+
+cd $PBS_O_WORKDIR
+
+##arguments
+script1="/public2/huangyj/Digitaria/annotation/EVM/_07_3_gene_evidence_stat.pl"
+script2="/public2/huangyj/Digitaria/annotation/EVM/_07_3_get_high_confidence_gene_list.pl"
+prefix='Dsan_EVM'
+#EVM_dir="/public3/jial/weedyrice_pangenome/04_genome_annotation/02_gene_anno/04_EVM/${prefix}"
+EVM_dir="/public2/huangyj/Digitaria/annotation/EVM"
+
+
+gff3="Dsan_EVM_combined_evm_out.gff3"	##result of EVM step
+evm_weight='EVM_weights'	##weights file used in EVM step
+evidence='final_all_EVM.evidence'
+
+##job area
+#Part1: get evidence data
+rm -f final_command_info.sh
+rm -f final_all_EVM.evidence
+
+for dir in `ls $EVM_dir |grep -P "$prefix\.\d+" |grep -v "log"`
+do
+	sep_dir="$EVM_dir/$dir"
+	for sub_dir in `dir $sep_dir`
+	do
+		echo 1
+        if [ -d $sep_dir/$sub_dir -a -f $sep_dir/$sub_dir/evm.out ]
+		then
+			echo "perl $script1 $sep_dir/$sub_dir/evm.out $sub_dir $evm_weight $evidence" >>final_command_info.sh
+		fi
+	done
+done
+
+sh final_command_info.sh
+#Part2: get high/low confidence ab gene list
+perl $script2 $gff3	$evidence
+
+echo "Finished"
+date

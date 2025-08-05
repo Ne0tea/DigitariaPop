@@ -1,0 +1,26 @@
+#!/bin/bash
+###define PBS arguments
+#PBS -N Eggmapper
+#PBS -l nodes=1:ppn=20,walltime=30:00:00:00
+#PBS -q normal
+#PBS -j oe
+#PBS -o log_eggNOG
+
+###job starting reminder
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+###job dir
+cd $PBS_O_WORKDIR
+
+source /public/home/huangyj/anaconda3/bin/activate /public/home/huangyj/anaconda3/envs/eggnog
+###file used
+prot_fasta='/public2/huangyj/Digitaria/function_annotation/Dsan_V3_modi.prot.fasta'
+out_prefix='Dsan_eggNOG2'
+threads=20
+
+/public2/huangyj/Digitaria/function_annotation/eggnog-mapper-2.1.12/emapper.py -m diamond -i ${prot_fasta} -o $out_prefix --pfam_realign realign --cpu $threads --resume --excel --dbmem
+
+conda deactivate
+###job finished reminder
+echo "Finished at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'

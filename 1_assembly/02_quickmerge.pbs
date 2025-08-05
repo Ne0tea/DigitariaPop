@@ -1,0 +1,31 @@
+#!/bin/bash
+###define PBS arguments
+
+#PBS -N quickmerge
+#PBS -l nodes=1:ppn=1,walltime=30:00:00:00
+#PBS -q low
+#PBS -j oe
+#PBS -o log_quickmerge
+#set +u -e
+###job starting reminder
+
+echo "Starting job at:"
+date -d +20minute +'%Y-%m-%d %H:%M:%S'
+###job dir
+cd $PBS_O_WORKDIR
+source activate /public/home/huangyj/anaconda3/envs/quickmerge
+###job command
+#So the merged assembly receives the most sequences from the query assembly, and the reference assembly provides only the sequences that bridge gaps in the query assembly. As a result, the merged assembly size and completeness (as evaluated by BUSCO or CEGMA metric) would be more like the query genome.
+#-q Hybrid assembly query
+#-r self assembly ref
+threads=20
+pri_asm=$1
+alt_asm=$2
+
+#merge_wrapper.py hybrid_assembly.fasta self_assembly.fasta -pre Dsan_quickmerge
+merge_wrapper.py -pre FINAL $pri_asm $alt_asm
+
+conda deactivate
+###job finished reminder
+echo "Finish at"
+date -d +20minute +'%Y-%m-%d %H:%M:%S' 

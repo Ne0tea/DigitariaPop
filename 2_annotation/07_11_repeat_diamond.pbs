@@ -1,0 +1,59 @@
+#PBS -N HDR7_prot_removerepeat
+#PBS -l nodes=1:ppn=40,walltime=30:00:00:00
+#PBS -q fat
+#PBS -j oe
+#PBS -o log_HDR7_protrepeat_remove
+
+##使用说明
+##根据重复序列consensi序列获得重复序列基因列表
+#
+##包含两个脚本:
+## 05_0_gene_length_2nd_trimtit.pl
+## 05_1_repeat_overlap_genes.pl
+#
+##准备文件:
+## combined_evm_out.prot	#EVM注释、转换的基因组蛋白序列
+## consensi.fa.classified	#Repeat annotation得到的consensi序列
+#
+##输出文件:
+## repeat_db.*	#重复序列库文件，包括nhr\nin\nsq三个
+## combined_evm_out.prot.len	#根据蛋白序列统计得到的基因长度
+## trimtit.combined_evm_out.prot.*	#trimtit开头的4个文件(.prot\.blast\.repeat_overlap\.list)，其中(.list)是最后重复序列基因列表
+#
+##说明结束
+
+echo "Starting"
+date
+hostname
+
+cd $PBS_O_WORKDIR
+##arguments
+#script
+script1="/public2/huangyj/Tobacco/regular_anno/_07_1_gene_length_2nd_trimtit.pl"
+script2="/public2/huangyj/Tobacco/regular_anno/_07_1_repeat_overlap_genes.pl"
+#data
+prefix="HDR7"
+#genome='/public2/huangyj/Tobacco/regular_anno/HDR7_consensi.fa.classified'	#重复序列consensi序列
+prot_genome="/public2/huangyj/Tobacco/scafold_anno/EVM/consensi.fa.classified.prot"
+query="HDR7_combined_evm_out.prot.fa"	#EVM注释蛋白文件
+
+##job area
+source activate /public/home/huangyj/miniconda3/envs/r_p
+#获取基因长度/去除ID冗余
+perl $script1 $query
+#比对(建库)
+if [ ! -f prot_repeat_db ]
+then
+	diamond makedb  --in $prot_genome --db prot_repeat_db
+	#makeblastdb -in $genome -dbtype nucl -out repeat_db
+fi
+diamond blastp --db prot_repeat_db --query trimtit.$query --out trimtit.${query}_prot.blast --threads 40 --evalue 1e-5
+#tblastn -query trimtit.$query -out trimtit.$query.blast -db repeat_db -outfmt 6 -evalue 1e-5 -num_descriptions 10 -num_threads 40
+#获取重复序列区域基因
+perl $script2 trimtit.${query}_prot.blast $query.len protein
+#提取重复序列基因ID
+awk '{print $1}' trimtit.${query}_prot.blast.repeat_overlap > trimtit.${query}_prot.blast.repeat_overlap.list
+
+conda deactivate
+echo "Finished"
+date

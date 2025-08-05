@@ -1,0 +1,18 @@
+#PBS -N augustus
+#PBS -l nodes=1:ppn=1,walltime=30:00:00:00
+#PBS -q fat
+#PBS -j oe
+#PBS -o log_augustus
+
+echo "Starting"
+date
+hostname
+
+cd $PBS_O_WORKDIR
+##arguments
+config_dir='/public/software/apps/augustus-3.2.2/config'
+echo ${config_dir} $species
+#job area
+/public/software/apps/augustus-3.2.2/bin/augustus --AUGUSTUS_CONFIG_PATH=$config_dir --strand=both --genemodel=complete --protein=on --introns=on --start=on --stop=on --cds=on --codingseq=on --alternatives-from-evidence=true --gff3=on --species="$species" "$fastfile" > "$output"
+echo "Finished"
+date

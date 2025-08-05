@@ -1,0 +1,8 @@
+#1分割基因组 暂不知道分开来跑预测的原因，可能是因为太大了
+qsub _04_genome_seperate.pbs
+
+#2从头预测（无模型）
+perl  _04_2_augustus_separate.pl HDR7 SeparateFile 20 arabidopsis HDR7_august_at.gff3 _04_augustus_template.pbs && perl _04_2_augustus_separate.pl HDR7  SeparateFile 20 tomato HDR7_august_to.gff3 _04_augustus_template.pbs
+
+#3调整格式
+cd /public3/dongcf/weedyrice_pangenome/02_genome_annotation/04_Augustus/WR04-6 && cat WR04-6.*/WR04-6_at.gff3>WR04-6_raw_at_augustus.gff3 && less WR04-6_raw_at_augustus.gff3 | grep -v "^#" > WR04-6_clean_at_augustus.gff3 && cat WR04-6.*/WR04-6_zm.gff3>WR04-6_raw_zm_augustus.gff3 && less WR04-6_raw_zm_augustus.gff3 | grep -v "^#" > WR04-6_clean_zm_augustus.gff3 && cd ..

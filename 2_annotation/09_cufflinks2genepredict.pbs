@@ -1,0 +1,25 @@
+#PBS -N cufflinks2gene
+#PBS -l nodes=1:ppn=1,walltime=30:00:00:00
+#PBS -q pang
+#PBS -j oe
+#PBS -o log_cufflinks2gene
+
+echo "Starting"
+date
+hostname
+
+cd $PBS_O_WORKDIR
+##arguments
+#source activate python2_env
+##job area
+Transdir="/public/home/huangyj/software/TransDecoder-TransDecoder-v5.5.0/"
+genome="/public4/home/huangyj/Digitaria/assembly/04gap_filler/Dsan_chr.V2.fa"
+sp="Dsan"
+${Transdir}util/gtf_genome_to_cdna_fasta.pl ./merged.gtf/merged.gtf $genome > transcripts.fasta
+${Transdir}util/gtf_to_alignment_gff3.pl ./merged.gtf/merged.gtf > transcripts.gff3
+${Transdir}TransDecoder.LongOrfs -t transcripts.fasta
+${Transdir}TransDecoder.Predict -t transcripts.fasta
+${Transdir}util/cdna_alignment_orf_to_genome_orf.pl transcripts.fasta.transdecoder.gff3 transcripts.gff3 transcripts.fasta > transcripts.fasta.transdecoder.genome.gff3
+mv transcripts.fasta.transdecoder.genome.gff3 ${sp}_trans.gff3
+echo "Finished"
+date
