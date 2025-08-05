@@ -4,6 +4,7 @@ Scripts used in Weediness of Digiatria Project
 - T2T reference genome assembly
 - Genome annotation
 - Population structure
+- Sympatric introgression
 - Chloroplast assembly
 - Anlysis based on assemblies
 
