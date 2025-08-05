@@ -1,6 +1,6 @@
 # *Digitaria* Weediness Project
 Scripts used in Weediness of Digiatria Project
-![](https://github.com/Ne0tea/DigitariaPop/edit/main/crabgrass.png)
+![](https://github.com/Ne0tea/DigitariaPop/edit/main/crabgrass.jpg)
 - T2T reference genome assembly
 - Genome annotation
 - Population structure
